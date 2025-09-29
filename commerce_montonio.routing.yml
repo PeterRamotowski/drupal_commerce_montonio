@@ -1,0 +1,9 @@
+commerce_montonio.webhook:
+  path: '/payment/notify/{commerce_payment_gateway}'
+  defaults:
+    _controller: '\Drupal\commerce_montonio\Controller\MontonioWebhookController::handle'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
+  options:
+    no_cache: 'TRUE'
