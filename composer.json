@@ -1,0 +1,23 @@
+{
+  "name": "drupal/commerce_montonio",
+  "type": "drupal-module",
+  "description": "Montonio payment gateway for Drupal Commerce",
+  "keywords": ["Drupal", "Commerce", "Payment", "Montonio"],
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://drupal.org/project/commerce_montonio",
+  "minimum-stability": "dev",
+  "support": {
+    "issues": "https://drupal.org/project/issues/commerce_montonio",
+    "source": "https://git.drupalcode.org/project/commerce_montonio"
+  },
+  "authors": [
+    {
+      "name": "ramotowski",
+      "homepage": "https://www.drupal.org/user/64249"
+    }
+  ],
+  "require": {
+    "drupal/core": "^11",
+    "firebase/php-jwt": "^6.0"
+  }
+}

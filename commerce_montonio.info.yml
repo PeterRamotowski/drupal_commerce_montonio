@@ -1,0 +1,7 @@
+name: Commerce Montonio
+description: 'Provides Montonio payment gateway integration for Drupal Commerce'
+package: Commerce
+type: module
+core_version_requirement: ^11
+dependencies:
+  - commerce:commerce_payment
