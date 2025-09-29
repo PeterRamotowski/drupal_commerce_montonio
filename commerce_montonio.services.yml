@@ -1,0 +1,20 @@
+services:
+  commerce_montonio.api_client:
+    class: Drupal\commerce_montonio\Service\MontonioApiClient
+    arguments: ['@http_client', '@commerce_montonio.logger']
+  
+  commerce_montonio.api_client_factory:
+    class: Drupal\commerce_montonio\Service\MontonioApiClientFactory
+    arguments: ['@commerce_montonio.api_client']
+
+  commerce_montonio.order_number:
+    class: Drupal\commerce_montonio\Service\OrderNumber
+    arguments: ['@entity_type.manager']
+
+  commerce_montonio.logger:
+    class: Drupal\commerce_montonio\Service\MontonioLogger
+    arguments: ['@logger.channel.commerce_montonio']
+
+  logger.channel.commerce_montonio:
+    parent: logger.channel_base
+    arguments: ['commerce_montonio']
