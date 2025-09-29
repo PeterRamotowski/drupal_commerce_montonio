@@ -1,0 +1,5 @@
+admin:
+  js:
+    js/montonio-admin.js: {}
+  dependencies:
+    - core/drupal

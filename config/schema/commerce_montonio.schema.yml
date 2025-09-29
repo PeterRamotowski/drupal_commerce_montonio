@@ -1,0 +1,19 @@
+commerce_payment.commerce_payment_gateway.plugin.montonio_redirect_checkout:
+  type: commerce_payment_gateway_configuration
+  label: 'Montonio configuration'
+  mapping:
+    access_key:
+      type: string
+      label: 'Access Key'
+    secret_key:
+      type: string
+      label: 'Secret Key'
+    default_payment_method:
+      type: string
+      label: 'Default payment method'
+    enabled_payment_methods:
+      type: sequence
+      label: 'Enabled payment methods'
+      sequence:
+        type: string
+        label: 'Payment method'
