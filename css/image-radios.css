@@ -1,0 +1,36 @@
+.image-radios-wrapper .fieldset-wrapper > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.image-radios__item {
+  flex: 0 1 200px;
+  margin-right: 1rem;
+}
+.image-radios__item label.option {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 1rem;
+  outline: 1px solid #ccc;
+}
+.image-radios__item input:checked + label {
+  outline: 2px solid #260071;
+}
+.image-radios__item-image {
+  margin-right: 1rem;
+}
+.image-radios .image-radios__item-image img {
+  display: block;
+}
+
+.image-radios__item .visually-hidden:focus,
+.image-radios__item .visually-hidden:active {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
