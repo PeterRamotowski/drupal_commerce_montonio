@@ -3,16 +3,11 @@
 namespace Drupal\commerce_montonio\Plugin\Commerce\PaymentGateway;
 
 use Drupal\commerce_montonio\PluginForm\MontonioOffsiteForm;
-use Drupal\commerce_order\Entity\OrderInterface;
 use Drupal\commerce_payment\Attribute\CommercePaymentGateway;
-use Drupal\commerce_payment\Exception\PaymentGatewayException;
 use Drupal\commerce_payment\Plugin\Commerce\PaymentGateway\OffsitePaymentGatewayBase;
-use Drupal\commerce_payment\Plugin\Commerce\PaymentGateway\SupportsNotificationsInterface;
-use Drupal\commerce_price\Price;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Provides the Montonio offsite Checkout payment gateway.
@@ -32,8 +27,7 @@ use Symfony\Component\HttpFoundation\Request;
     "amex",
   ]
 )]
-class Montonio extends OffsitePaymentGatewayBase implements SupportsNotificationsInterface
-{
+class Montonio extends OffsitePaymentGatewayBase {
 
   /**
    * The Montonio API client factory.
@@ -43,12 +37,19 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
   protected $apiClientFactory;
 
   /**
+   * The payment repository.
+   *
+   * @var \Drupal\commerce_montonio\Repository\PaymentRepositoryInterface
+   */
+  protected $paymentRepository;
+
+  /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition)
-  {
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
     $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
     $instance->apiClientFactory = $container->get('commerce_montonio.api_client_factory');
+    $instance->paymentRepository = $container->get('commerce_montonio.payment_repository');
     return $instance;
   }
 
@@ -68,8 +69,7 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
   /**
    * {@inheritdoc}
    */
-  public function validateConfigurationForm(array &$form, FormStateInterface $form_state)
-  {
+  public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
     parent::validateConfigurationForm($form, $form_state);
 
     $values = $form_state->getValue($form['#parents']);
@@ -88,8 +88,7 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
   /**
    * {@inheritdoc}
    */
-  public function buildConfigurationForm(array $form, FormStateInterface $form_state)
-  {
+  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $form = parent::buildConfigurationForm($form, $form_state);
 
     $form['access_key'] = [
@@ -125,11 +124,11 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
       '#required' => TRUE,
     ];
 
-    // Filter default payment method options to only enabled methods
+    // Filter default payment method options to only enabled methods.
     $enabled_methods = $this->configuration['enabled_payment_methods'] ?? [];
     $default_method_options = array_intersect_key($payment_method_options, array_flip($enabled_methods));
 
-    // If no methods are enabled, show all options as fallback
+    // If no methods are enabled, show all options as fallback.
     if (empty($default_method_options)) {
       $default_method_options = $payment_method_options;
     }
@@ -156,8 +155,7 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
   /**
    * {@inheritdoc}
    */
-  public function submitConfigurationForm(array &$form, FormStateInterface $form_state)
-  {
+  public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
     parent::submitConfigurationForm($form, $form_state);
 
     if (!$form_state->getErrors()) {
@@ -167,6 +165,7 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
       $this->configuration['secret_key'] = $values['secret_key'];
       $this->configuration['default_payment_method'] = $values['default_payment_method'];
       $this->configuration['enabled_payment_methods'] = array_values($enabled_payment_methods);
+      $this->configuration['debug'] = $values['debug'];
     }
   }
 
@@ -176,16 +175,9 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
    * @return array
    *   Available payment methods.
    */
-  public function getAvailablePaymentMethods(): array
-  {
+  public function getAvailablePaymentMethods(): array {
     $apiClient = $this->apiClientFactory->createFromPaymentGatewayPlugin($this);
-    $paymentMethods = $apiClient->getPaymentMethods();
-
-    if (!$paymentMethods || !isset($paymentMethods['paymentMethods'])) {
-      return [];
-    }
-
-    return $paymentMethods['paymentMethods'];
+    return $apiClient->getPaymentMethods();
   }
 
   /**
@@ -194,8 +186,7 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
    * @return array
    *   Enabled payment methods filtered from available methods.
    */
-  public function getEnabledPaymentMethods(): array
-  {
+  public function getEnabledPaymentMethods(): array {
     $availableMethods = $this->getAvailablePaymentMethods();
     $enabledMethods = $this->configuration['enabled_payment_methods'] ?? [];
 
@@ -211,40 +202,6 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
     }
 
     return $filteredMethods;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function onReturn(OrderInterface $order, Request $request)
-  {
-    $orderToken = $request->query->get('order-token');
-
-    if (!$orderToken) {
-      throw new PaymentGatewayException('Missing order token in return URL.');
-    }
-
-    $apiClient = $this->apiClientFactory->createFromPaymentGatewayPlugin($this);
-    $decodedToken = $apiClient->decodeToken($orderToken);
-
-    if (!$decodedToken) {
-      throw new PaymentGatewayException('Invalid order token.');
-    }
-
-    if ($decodedToken->paymentStatus === 'PAID') {
-      $paymentStorage = $this->entityTypeManager->getStorage('commerce_payment');
-      $payment = $paymentStorage->create([
-        'state' => 'completed',
-        'amount' => new Price((string) $decodedToken->grandTotal, $decodedToken->currency),
-        'payment_gateway' => $this->parentEntity->id(),
-        'order_id' => $order->id(),
-        'remote_id' => $decodedToken->uuid,
-        'remote_state' => $decodedToken->paymentStatus,
-      ]);
-      $payment->save();
-    } elseif (in_array($decodedToken->paymentStatus, ['VOIDED', 'ABANDONED'])) {
-      throw new PaymentGatewayException('Payment was cancelled or failed.');
-    }
   }
 
 }

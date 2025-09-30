@@ -2,13 +2,12 @@
 
 namespace Drupal\commerce_montonio\Controller;
 
+use Drupal\commerce_montonio\Repository\OrderRepositoryInterface;
 use Drupal\commerce_montonio\Service\MontonioApiClientFactory;
 use Drupal\commerce_montonio\Service\MontonioLogger;
-use Drupal\commerce_order\Entity\OrderInterface;
+use Drupal\commerce_montonio\Service\MontonioPaymentService;
 use Drupal\commerce_payment\Entity\PaymentGatewayInterface;
-use Drupal\commerce_price\Price;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,8 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Handles Montonio webhook notifications.
  */
-class MontonioWebhookController extends ControllerBase
-{
+class MontonioWebhookController extends ControllerBase {
 
   /**
    * The entity type manager.
@@ -42,6 +40,20 @@ class MontonioWebhookController extends ControllerBase
   protected $montonioLogger;
 
   /**
+   * Montonio payment service.
+   *
+   * @var \Drupal\commerce_montonio\Service\MontonioPaymentService
+   */
+  protected $paymentService;
+
+  /**
+   * Order repository.
+   *
+   * @var \Drupal\commerce_montonio\Repository\OrderRepositoryInterface
+   */
+  protected $orderRepository;
+
+  /**
    * Constructs a new MontonioWebhookController object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
@@ -50,23 +62,35 @@ class MontonioWebhookController extends ControllerBase
    *   The Montonio API client factory.
    * @param \Drupal\commerce_montonio\Service\MontonioLogger $montonioLogger
    *   The Montonio logger.
+   * @param \Drupal\commerce_montonio\Service\MontonioPaymentService $paymentService
+   *   The Montonio payment service.
+   * @param \Drupal\commerce_montonio\Repository\OrderRepositoryInterface $orderRepository
+   *   The order repository.
    */
-  public function __construct(EntityTypeManagerInterface $entityTypeManager, MontonioApiClientFactory $apiClientFactory, MontonioLogger $montonioLogger)
-  {
+  public function __construct(
+    EntityTypeManagerInterface $entityTypeManager,
+    MontonioApiClientFactory $apiClientFactory,
+    MontonioLogger $montonioLogger,
+    MontonioPaymentService $paymentService,
+    OrderRepositoryInterface $orderRepository,
+  ) {
     $this->entityTypeManager = $entityTypeManager;
     $this->apiClientFactory = $apiClientFactory;
     $this->montonioLogger = $montonioLogger;
+    $this->paymentService = $paymentService;
+    $this->orderRepository = $orderRepository;
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container)
-  {
+  public static function create(ContainerInterface $container) {
     return new static(
       $container->get('entity_type.manager'),
       $container->get('commerce_montonio.api_client_factory'),
-      $container->get('commerce_montonio.logger')
+      $container->get('commerce_montonio.logger'),
+      $container->get('commerce_montonio.payment_service'),
+      $container->get('commerce_montonio.order_repository')
     );
   }
 
@@ -107,31 +131,32 @@ class MontonioWebhookController extends ControllerBase
       }
 
       // Verify the access key matches.
-      if (!isset($decodedToken->accessKey) || $decodedToken->accessKey !== $configuration['access_key']) {
+      if (!$decodedToken->getAccessKey() || $decodedToken->getAccessKey() !== $configuration['access_key']) {
         $this->montonioLogger->error('Access key mismatch in webhook token for gateway @gateway', [
           '@gateway' => $commerce_payment_gateway->id(),
         ]);
         return new Response('Access key mismatch', 403);
       }
 
-      $order = $this->findOrderByReference($decodedToken->merchantReference);
+      $order = $this->orderRepository->findOrderByReference($decodedToken->getMerchantReference());
 
       if (!$order) {
         $this->montonioLogger->warning('Order not found for merchant reference @ref in webhook', [
-          '@ref' => $decodedToken->merchantReference,
+          '@ref' => $decodedToken->getMerchantReference(),
         ]);
         return new Response('Order not found', 404);
       }
 
-      $this->processPaymentStatus($decodedToken, $order, $commerce_payment_gateway);
+      $this->paymentService->processWebhook($decodedToken, $order, $commerce_payment_gateway);
 
       $this->montonioLogger->info('Webhook processed successfully for order id @order_id, status: @status', [
         '@order_id' => $order->id(),
-        '@status' => $decodedToken->paymentStatus,
+        '@status' => $decodedToken->getPaymentStatus(),
       ]);
 
       return new Response('OK', 200);
-    } catch (\Exception $e) {
+    }
+    catch (\Exception $e) {
       $this->montonioLogger->error('Error processing webhook: @error', [
         '@error' => $e->getMessage(),
       ]);
@@ -139,219 +164,4 @@ class MontonioWebhookController extends ControllerBase
     }
   }
 
-  /**
-   * Finds an order by its merchant reference (order number).
-   *
-   * @param string $merchantReference
-   *   The merchant reference to search for.
-   *
-   * @return \Drupal\commerce_order\Entity\OrderInterface|null
-   *   The order entity or NULL if not found.
-   */
-  protected function findOrderByReference($merchantReference): ?OrderInterface {
-    $orderStorage = $this->entityTypeManager->getStorage('commerce_order');
-    $orders = $orderStorage->loadByProperties([
-      'order_number' => $merchantReference,
-    ]);
-
-    return !empty($orders) ? reset($orders) : NULL;
-  }
-
-  /**
-   * Processes the payment status from the webhook.
-   *
-   * @param object $decodedToken
-   *   The decoded JWT token from Montonio.
-   * @param \Drupal\commerce_order\Entity\OrderInterface $order
-   *   The order entity.
-   * @param \Drupal\commerce_payment\Entity\PaymentGatewayInterface $gateway
-   *   The payment gateway entity.
-   */
-  protected function processPaymentStatus($decodedToken, OrderInterface $order, PaymentGatewayInterface $gateway)
-  {
-    $paymentStorage = $this->entityTypeManager->getStorage('commerce_payment');
-
-    switch ($decodedToken->paymentStatus) {
-      case 'PAID':
-        $this->handlePaidStatus($decodedToken, $order, $gateway, $paymentStorage);
-        break;
-
-      case 'PARTIALLY_REFUNDED':
-      case 'REFUNDED':
-        $this->handleRefundStatus($decodedToken, $order, $paymentStorage);
-        break;
-
-      case 'VOIDED':
-        $this->handleVoidedStatus($decodedToken, $order, $paymentStorage);
-        break;
-
-      case 'ABANDONED':
-        $this->handleAbandonedStatus($decodedToken, $order, $paymentStorage);
-        break;
-
-      case 'AUTHORIZED':
-        $this->handleAuthorizedStatus($decodedToken, $order, $gateway, $paymentStorage);
-        break;
-
-      default:
-        $this->montonioLogger->info('Unhandled payment status @status for order id @order', [
-          '@status' => $decodedToken->paymentStatus,
-          '@order' => $order->id(),
-        ]);
-    }
-  }
-
-  /**
-   * Handles PAID payment status.
-   */
-  protected function handlePaidStatus($decodedToken, OrderInterface $order, PaymentGatewayInterface $gateway, EntityStorageInterface $paymentStorage)
-  {
-    $existingPayments = $paymentStorage->loadByProperties([
-      'remote_id' => $decodedToken->uuid,
-      'order_id' => $order->id(),
-    ]);
-
-    if (!empty($existingPayments)) {
-      $this->montonioLogger->info('Payment already exists for order id @order, skipping creation', [
-        '@order' => $order->id(),
-      ]);
-    }
-
-    $payment = $paymentStorage->create([
-      'state' => 'completed',
-      'amount' => new Price((string) $decodedToken->grandTotal, $decodedToken->currency),
-      'payment_gateway' => $gateway->id(),
-      'order_id' => $order->id(),
-      'remote_id' => $decodedToken->uuid,
-      'remote_state' => $decodedToken->paymentStatus,
-    ]);
-
-    $payment->save();
-
-    $this->montonioLogger->info('Payment created for order id @order, amount: @amount', [
-      '@order' => $order->id(),
-      '@amount' => $decodedToken->grandTotal . ' ' . $decodedToken->currency,
-    ]);
-
-    if ($order->getState()->getId() === 'draft') {
-      $order->getState()->applyTransitionById('place');
-      $order->unlock();
-      $order->save();
-    }
-  }
-
-  /**
-   * Handles PARTIALLY_REFUNDED and REFUNDED payment statuses.
-   */
-  protected function handleRefundStatus($decodedToken, OrderInterface $order, EntityStorageInterface $paymentStorage)
-  {
-    $payments = $paymentStorage->loadByProperties([
-      'remote_id' => $decodedToken->uuid,
-      'order_id' => $order->id(),
-    ]);
-
-    if (!empty($payments)) {
-      /** @var \Drupal\commerce_payment\Entity\PaymentInterface $payment */
-      $payment = reset($payments);
-
-      if ($decodedToken->paymentStatus === 'PARTIALLY_REFUNDED') {
-        $payment->setState('partially_refunded');
-      } else {
-        $payment->setState('refunded');
-      }
-
-      $payment->setRemoteState($decodedToken->paymentStatus);
-      $payment->save();
-
-      $this->montonioLogger->info('Payment @payment updated to @status', [
-        '@payment' => $payment->id(),
-        '@status' => $decodedToken->paymentStatus,
-      ]);
-    }
-  }
-
-  /**
-   * Handles VOIDED payment status.
-   */
-  protected function handleVoidedStatus($decodedToken, OrderInterface $order, EntityStorageInterface $paymentStorage)
-  {
-    $payments = $paymentStorage->loadByProperties([
-      'remote_id' => $decodedToken->uuid,
-      'order_id' => $order->id(),
-    ]);
-
-    if (!empty($payments)) {
-      /** @var \Drupal\commerce_payment\Entity\PaymentInterface $payment */
-      $payment = reset($payments);
-      $payment->setState('voided');
-      $payment->setRemoteState($decodedToken->paymentStatus);
-      $payment->save();
-
-      $this->montonioLogger->warning('Payment @payment was voided by the bank for order id @order', [
-        '@payment' => $payment->id(),
-        '@order' => $order->id(),
-      ]);
-    }
-  }
-
-  /**
-   * Handles ABANDONED payment status.
-   */
-  protected function handleAbandonedStatus($decodedToken, OrderInterface $order, EntityStorageInterface $paymentStorage)
-  {
-    $payments = $paymentStorage->loadByProperties([
-      'order_id' => $order->id(),
-      'state' => 'new',
-    ]);
-
-    /** @var \Drupal\commerce_payment\Entity\PaymentInterface $payment */
-    foreach ($payments as $payment) {
-      if ($payment->getRemoteId() === $decodedToken->uuid) {
-        $payment->setState('canceled');
-        $payment->setRemoteState($decodedToken->paymentStatus);
-        $payment->save();
-
-        $this->montonioLogger->info('Payment @payment marked as abandoned for order id @order', [
-          '@payment' => $payment->id(),
-          '@order' => $order->id(),
-        ]);
-      }
-    }
-  }
-
-  /**
-   * Handles AUTHORIZED payment status.
-   */
-  protected function handleAuthorizedStatus($decodedToken, OrderInterface $order, PaymentGatewayInterface $gateway, EntityStorageInterface $paymentStorage)
-  {
-    $existingPayments = $paymentStorage->loadByProperties([
-      'remote_id' => $decodedToken->uuid,
-      'order_id' => $order->id(),
-    ]);
-
-    if (empty($existingPayments)) {
-      $payment = $paymentStorage->create([
-        'state' => 'authorization',
-        'amount' => new Price((string) $decodedToken->grandTotal, $decodedToken->currency),
-        'payment_gateway' => $gateway->id(),
-        'order_id' => $order->id(),
-        'remote_id' => $decodedToken->uuid,
-        'remote_state' => $decodedToken->paymentStatus,
-      ]);
-      $payment->save();
-
-      $this->montonioLogger->info('Payment authorized for order id @order, amount: @amount', [
-        '@order' => $order->id(),
-        '@amount' => $decodedToken->grandTotal . ' ' . $decodedToken->currency,
-      ]);
-    } else {
-      /** @var \Drupal\commerce_payment\Entity\PaymentInterface $payment */
-      $payment = reset($existingPayments);
-      if ($payment->getState()->getId() === 'new') {
-        $payment->setState('authorization');
-        $payment->setRemoteState($decodedToken->paymentStatus);
-        $payment->save();
-      }
-    }
-  }
 }
