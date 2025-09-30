@@ -17,3 +17,6 @@ commerce_payment.commerce_payment_gateway.plugin.montonio_redirect_checkout:
       sequence:
         type: string
         label: 'Payment method'
+    debug:
+      type: boolean
+      label: 'Enable debug logging'

@@ -1,16 +1,4 @@
 services:
-  commerce_montonio.api_client:
-    class: Drupal\commerce_montonio\Service\MontonioApiClient
-    arguments: ['@http_client', '@commerce_montonio.logger']
-  
-  commerce_montonio.api_client_factory:
-    class: Drupal\commerce_montonio\Service\MontonioApiClientFactory
-    arguments: ['@commerce_montonio.api_client']
-
-  commerce_montonio.order_number:
-    class: Drupal\commerce_montonio\Service\OrderNumber
-    arguments: ['@entity_type.manager']
-
   commerce_montonio.logger:
     class: Drupal\commerce_montonio\Service\MontonioLogger
     arguments: ['@logger.channel.commerce_montonio']
@@ -18,3 +6,81 @@ services:
   logger.channel.commerce_montonio:
     parent: logger.channel_base
     arguments: ['commerce_montonio']
+
+  commerce_montonio.jwt_service:
+    class: Drupal\commerce_montonio\Service\MontonioJwtService
+
+  commerce_montonio.api_client:
+    class: Drupal\commerce_montonio\Service\MontonioApiClient
+    arguments:
+      - '@http_client'
+      - '@commerce_montonio.logger'
+      - '@commerce_montonio.jwt_service'
+
+  commerce_montonio.api_client_factory:
+    class: Drupal\commerce_montonio\Service\MontonioApiClientFactory
+    arguments: ['@commerce_montonio.api_client']
+
+  commerce_montonio.payment_method_validator:
+    class: Drupal\commerce_montonio\Service\PaymentMethodValidator
+
+  commerce_montonio.payment_repository:
+    class: Drupal\commerce_montonio\Repository\PaymentRepository
+    arguments: ['@entity_type.manager']
+
+  commerce_montonio.order_repository:
+    class: Drupal\commerce_montonio\Repository\OrderRepository
+    arguments: ['@entity_type.manager']
+
+  commerce_montonio.payment_status_strategy.paid:
+    class: Drupal\commerce_montonio\Service\PaymentStatus\PaidPaymentStrategy
+    arguments: ['@commerce_montonio.logger', '@commerce_montonio.payment_repository']
+
+  commerce_montonio.payment_status_strategy.refund:
+    class: Drupal\commerce_montonio\Service\PaymentStatus\RefundPaymentStrategy
+    arguments: ['@commerce_montonio.logger', '@commerce_montonio.payment_repository']
+
+  commerce_montonio.payment_status_strategy.voided:
+    class: Drupal\commerce_montonio\Service\PaymentStatus\VoidedPaymentStrategy
+    arguments: ['@commerce_montonio.logger', '@commerce_montonio.payment_repository']
+
+  commerce_montonio.payment_status_strategy.abandoned:
+    class: Drupal\commerce_montonio\Service\PaymentStatus\AbandonedPaymentStrategy
+    arguments: ['@commerce_montonio.logger', '@commerce_montonio.payment_repository']
+
+  commerce_montonio.payment_status_strategy.authorized:
+    class: Drupal\commerce_montonio\Service\PaymentStatus\AuthorizedPaymentStrategy
+    arguments: ['@commerce_montonio.logger', '@commerce_montonio.payment_repository']
+
+  commerce_montonio.payment_status_strategy_manager:
+    class: Drupal\commerce_montonio\Service\PaymentStatus\PaymentStatusStrategyManager
+    arguments: ['@commerce_montonio.logger']
+    calls:
+      - [addStrategy, ['@commerce_montonio.payment_status_strategy.paid']]
+      - [addStrategy, ['@commerce_montonio.payment_status_strategy.refund']]
+      - [addStrategy, ['@commerce_montonio.payment_status_strategy.voided']]
+      - [addStrategy, ['@commerce_montonio.payment_status_strategy.abandoned']]
+      - [addStrategy, ['@commerce_montonio.payment_status_strategy.authorized']]
+
+  commerce_montonio.dto_factory:
+    class: Drupal\commerce_montonio\Dto\DtoFactory
+
+  commerce_montonio.payment_event_dispatcher:
+    class: Drupal\commerce_montonio\Event\PaymentEventDispatcher
+    arguments: ['@event_dispatcher']
+
+  commerce_montonio.payment_service:
+    class: Drupal\commerce_montonio\Service\MontonioPaymentService
+    arguments:
+      - '@event_dispatcher'
+      - '@commerce_montonio.payment_event_dispatcher'
+      - '@commerce_montonio.api_client_factory'
+      - '@commerce_montonio.payment_method_validator'
+      - '@commerce_montonio.payment_status_strategy_manager'
+      - '@commerce_montonio.dto_factory'
+      - '@commerce_montonio.order_number'
+      - '@language_manager'
+
+  commerce_montonio.order_number:
+    class: Drupal\commerce_montonio\Service\OrderNumber
+    arguments: ['@entity_type.manager']
