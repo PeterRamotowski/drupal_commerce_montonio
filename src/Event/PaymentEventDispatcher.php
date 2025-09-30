@@ -3,8 +3,6 @@
 namespace Drupal\commerce_montonio\Event;
 
 use Drupal\commerce_montonio\Dto\MontonioTokenDto;
-use Drupal\commerce_montonio\Event\PaymentPaidEvent;
-use Drupal\commerce_montonio\Event\PaymentStatusEvent;
 use Drupal\commerce_order\Entity\OrderInterface;
 use Drupal\commerce_payment\Entity\PaymentGatewayInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -17,7 +15,7 @@ class PaymentEventDispatcher {
   /**
    * Constructs a new PaymentEventDispatcher.
    *
-   * @param EventDispatcherInterface $eventDispatcher
+   * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $eventDispatcher
    *   The Symfony event dispatcher.
    */
   public function __construct(
@@ -27,17 +25,17 @@ class PaymentEventDispatcher {
   /**
    * Dispatches a payment status change event.
    *
-   * @param MontonioTokenDto $token
+   * @param \Drupal\commerce_montonio\Dto\MontonioTokenDto $token
    *   The decoded Montonio token.
-   * @param OrderInterface $order
+   * @param \Drupal\commerce_order\Entity\OrderInterface $order
    *   The order entity.
-   * @param PaymentGatewayInterface $gateway
+   * @param \Drupal\commerce_payment\Entity\PaymentGatewayInterface $gateway
    *   The payment gateway entity.
    */
   public function dispatchPaymentStatusEvent(
     MontonioTokenDto $token,
     OrderInterface $order,
-    PaymentGatewayInterface $gateway
+    PaymentGatewayInterface $gateway,
   ): void {
     $event = new PaymentStatusEvent($token, $order, $gateway);
     $this->eventDispatcher->dispatch($event, PaymentStatusEvent::PAYMENT_STATUS_CHANGED);
@@ -48,17 +46,17 @@ class PaymentEventDispatcher {
   /**
    * Dispatches a specific payment status event.
    *
-   * @param MontonioTokenDto $token
+   * @param \Drupal\commerce_montonio\Dto\MontonioTokenDto $token
    *   The decoded Montonio token.
-   * @param OrderInterface $order
+   * @param \Drupal\commerce_order\Entity\OrderInterface $order
    *   The order entity.
-   * @param PaymentGatewayInterface $gateway
+   * @param \Drupal\commerce_payment\Entity\PaymentGatewayInterface $gateway
    *   The payment gateway entity.
    */
   protected function dispatchSpecificPaymentEvent(
     MontonioTokenDto $token,
     OrderInterface $order,
-    PaymentGatewayInterface $gateway
+    PaymentGatewayInterface $gateway,
   ): void {
     switch ($token->getPaymentStatus()) {
       case 'PAID':

@@ -3,6 +3,7 @@ commerce_montonio.webhook:
   defaults:
     _controller: '\Drupal\commerce_montonio\Controller\MontonioWebhookController::handle'
   requirements:
+    # Webhook endpoint must be publicly accessible for external payment provider notifications.
     _access: 'TRUE'
   methods: [POST]
   options:

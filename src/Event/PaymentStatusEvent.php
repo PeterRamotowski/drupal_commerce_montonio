@@ -20,11 +20,11 @@ class PaymentStatusEvent extends Event {
   /**
    * Constructs a new PaymentStatusEvent.
    *
-   * @param MontonioTokenDto $token
+   * @param \Drupal\commerce_montonio\Dto\MontonioTokenDto $token
    *   The decoded Montonio token.
-   * @param OrderInterface $order
+   * @param \Drupal\commerce_order\Entity\OrderInterface $order
    *   The order entity.
-   * @param PaymentGatewayInterface $gateway
+   * @param \Drupal\commerce_payment\Entity\PaymentGatewayInterface $gateway
    *   The payment gateway entity.
    */
   public function __construct(

@@ -36,7 +36,7 @@ class MontonioApiException extends MontonioException {
     int $httpStatusCode = 0,
     ?string $responseBody = NULL,
     ?\Throwable $previous = NULL,
-    array $context = []
+    array $context = [],
   ) {
     $context['http_status_code'] = $httpStatusCode;
     $context['response_body'] = $responseBody;
