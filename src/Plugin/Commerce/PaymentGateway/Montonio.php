@@ -55,13 +55,13 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
   /**
    * {@inheritdoc}
    */
-  public function defaultConfiguration()
-  {
+  public function defaultConfiguration() {
     return [
       'access_key' => '',
       'secret_key' => '',
       'default_payment_method' => 'blik',
       'enabled_payment_methods' => [],
+      'debug' => FALSE,
     ] + parent::defaultConfiguration();
   }
 
@@ -139,6 +139,13 @@ class Montonio extends OffsitePaymentGatewayBase implements SupportsNotification
       '#title' => $this->t('Default payment method'),
       '#options' => $default_method_options,
       '#default_value' => $this->configuration['default_payment_method'],
+    ];
+
+    $form['debug'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable debug'),
+      '#description' => $this->t('Enable debugging to display detailed error messages.'),
+      '#default_value' => $this->configuration['debug'],
     ];
 
     $form['#attached']['library'][] = 'commerce_montonio/admin';

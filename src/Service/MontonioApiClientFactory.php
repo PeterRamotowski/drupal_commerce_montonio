@@ -8,10 +8,11 @@ use Drupal\commerce_payment\Plugin\Commerce\PaymentGateway\PaymentGatewayInterfa
 /**
  * Factory service for creating configured Montonio API clients.
  */
-class MontonioApiClientFactory
-{
+class MontonioApiClientFactory {
 
   /**
+   * Constructs a MontonioApiClientFactory object.
+   *
    * @param MontonioApiClient $apiClient
    *   Montonio API client.
    */
@@ -34,7 +35,8 @@ class MontonioApiClientFactory
     $this->apiClient->setConfiguration(
       $configuration['access_key'],
       $configuration['secret_key'],
-      $sandboxMode
+      $sandboxMode,
+      $configuration['debug'] ?? FALSE
     );
 
     return $this->apiClient;
@@ -53,7 +55,7 @@ class MontonioApiClientFactory
     $gateway_plugin = $paymentGateway->getPlugin();
     $configuration = $gateway_plugin->getConfiguration();
     $sandboxMode = $gateway_plugin->getMode() === 'test';
-    
+
     return $this->createFromConfiguration($configuration, $sandboxMode);
   }
 
@@ -69,7 +71,8 @@ class MontonioApiClientFactory
   public function createFromPaymentGatewayPlugin(PaymentGatewayPluginInterface $gatewayPlugin): MontonioApiClient {
     $configuration = $gatewayPlugin->getConfiguration();
     $sandboxMode = $gatewayPlugin->getMode() === 'test';
-    
+
     return $this->createFromConfiguration($configuration, $sandboxMode);
   }
+
 }
