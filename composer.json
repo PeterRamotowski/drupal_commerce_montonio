@@ -17,6 +17,7 @@
     }
   ],
   "require": {
+    "drupal/commerce": "^3.0",
     "drupal/core": "^11",
     "firebase/php-jwt": "^6.0"
   }
