@@ -6,6 +6,7 @@ use Drupal\commerce_montonio\Repository\OrderRepositoryInterface;
 use Drupal\commerce_montonio\Service\MontonioApiClientFactory;
 use Drupal\commerce_montonio\Service\MontonioLogger;
 use Drupal\commerce_montonio\Service\MontonioPaymentService;
+use Drupal\commerce_montonio\Service\WebhookValidator;
 use Drupal\commerce_payment\Entity\PaymentGatewayInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -54,6 +55,13 @@ class MontonioWebhookController extends ControllerBase {
   protected $orderRepository;
 
   /**
+   * The webhook validator service.
+   *
+   * @var \Drupal\commerce_montonio\Service\WebhookValidator
+   */
+  protected $webhookValidator;
+
+  /**
    * Constructs a new MontonioWebhookController object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
@@ -66,6 +74,8 @@ class MontonioWebhookController extends ControllerBase {
    *   The Montonio payment service.
    * @param \Drupal\commerce_montonio\Repository\OrderRepositoryInterface $orderRepository
    *   The order repository.
+   * @param \Drupal\commerce_montonio\Service\WebhookValidator $webhookValidator
+   *   The webhook validator service.
    */
   public function __construct(
     EntityTypeManagerInterface $entityTypeManager,
@@ -73,12 +83,14 @@ class MontonioWebhookController extends ControllerBase {
     MontonioLogger $montonioLogger,
     MontonioPaymentService $paymentService,
     OrderRepositoryInterface $orderRepository,
+    WebhookValidator $webhookValidator,
   ) {
     $this->entityTypeManager = $entityTypeManager;
     $this->apiClientFactory = $apiClientFactory;
     $this->montonioLogger = $montonioLogger;
     $this->paymentService = $paymentService;
     $this->orderRepository = $orderRepository;
+    $this->webhookValidator = $webhookValidator;
   }
 
   /**
@@ -90,7 +102,8 @@ class MontonioWebhookController extends ControllerBase {
       $container->get('commerce_montonio.api_client_factory'),
       $container->get('commerce_montonio.logger'),
       $container->get('commerce_montonio.payment_service'),
-      $container->get('commerce_montonio.order_repository')
+      $container->get('commerce_montonio.order_repository'),
+      $container->get('commerce_montonio.webhook_validator')
     );
   }
 
@@ -108,6 +121,10 @@ class MontonioWebhookController extends ControllerBase {
   public function handle(Request $request, PaymentGatewayInterface $commerce_payment_gateway): Response {
     try {
       $order_token = $request->query->get('order-token');
+
+      if (!$this->webhookValidator->validateWebhookSource($request)) {
+        return new Response('Unauthorized', 403);
+      }
 
       if (!$order_token) {
         $this->montonioLogger->warning('Webhook received without orderToken for gateway @gateway', [

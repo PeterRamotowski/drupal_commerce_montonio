@@ -142,7 +142,10 @@ class MontonioWebhookTest extends KernelTestBase {
     $request = Request::create(
       '/payment/notify/montonio_test',
       'GET',
-      ['order-token' => 'mock_jwt_token']
+      ['order-token' => 'mock_jwt_token'],
+      [],
+      [],
+      ['REMOTE_ADDR' => '35.156.245.42']
     );
 
     $controller = MontonioWebhookController::create($this->container);
@@ -175,7 +178,10 @@ class MontonioWebhookTest extends KernelTestBase {
     $request = Request::create(
       '/payment/notify/montonio_test',
       'GET',
-      ['order-token' => 'invalid_token']
+      ['order-token' => 'invalid_token'],
+      [],
+      [],
+      ['REMOTE_ADDR' => '35.156.245.42']
     );
 
     $controller = MontonioWebhookController::create($this->container);
@@ -222,7 +228,10 @@ class MontonioWebhookTest extends KernelTestBase {
     $request = Request::create(
       '/payment/notify/montonio_test',
       'GET',
-      ['order-token' => 'mock_jwt_token']
+      ['order-token' => 'mock_jwt_token'],
+      [],
+      [],
+      ['REMOTE_ADDR' => '35.156.245.42']
     );
 
     $controller = MontonioWebhookController::create($this->container);

@@ -81,6 +81,10 @@ services:
       - '@commerce_montonio.order_number'
       - '@language_manager'
 
+  commerce_montonio.webhook_validator:
+    class: Drupal\commerce_montonio\Service\WebhookValidator
+    arguments: ['@commerce_montonio.logger']
+
   commerce_montonio.order_number:
     class: Drupal\commerce_montonio\Service\OrderNumber
     arguments: ['@entity_type.manager']
