@@ -282,8 +282,36 @@ class MontonioOffsiteForm extends PaymentOffsiteForm implements ContainerInjecti
     $options = [];
     $currency = $order->getTotalPrice()->getCurrencyCode();
     $countryCode = $this->getOrderCountryCode($order);
+    $orderAmount = (float) $order->getTotalPrice()->getNumber();
+
+    // Define supported currencies for each payment method.
+    $supportedCurrencies = [
+      'paymentInitiation' => ['EUR', 'PLN'],
+      'cardPayments' => ['EUR', 'PLN'],
+      'blik' => ['PLN'],
+      'bnpl' => ['EUR'],
+      'hirePurchase' => ['EUR'],
+    ];
+
+    // Define order amount limits for financing methods.
+    $amountLimits = [
+      'bnpl' => ['min' => 30, 'max' => 2500],
+      'hirePurchase' => ['min' => 100, 'max' => 10000],
+    ];
 
     foreach ($availableMethods as $method_id => $method_data) {
+      // Check if method supports the order currency.
+      if (isset($supportedCurrencies[$method_id]) && !in_array($currency, $supportedCurrencies[$method_id])) {
+        continue;
+      }
+
+      // Check if method meets order amount limits.
+      if (isset($amountLimits[$method_id])) {
+        if ($orderAmount < $amountLimits[$method_id]['min'] || $orderAmount > $amountLimits[$method_id]['max']) {
+          continue;
+        }
+      }
+
       if ($this->paymentMethodValidator->methodSupportsOrder($method_data, $currency, $countryCode)) {
         $options[$method_id] = $this->getPaymentMethodLabel($method_id);
       }
