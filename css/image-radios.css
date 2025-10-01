@@ -13,8 +13,8 @@
   align-items: center;
   height: 100%;
   padding: 1rem;
-  outline: 1px solid #ccc;
   cursor: pointer;
+  outline: 1px solid #ccc;
   transition: outline 0.1s linear;
 }
 .image-radios__item input:checked + label {
@@ -29,10 +29,10 @@
 
 .image-radios__item .visually-hidden:focus,
 .image-radios__item .visually-hidden:active {
+  position: absolute;
+  overflow: hidden;
   clip-path: inset(50%);
   height: 1px;
-  overflow: hidden;
-  position: absolute;
   white-space: nowrap;
   width: 1px;
 }

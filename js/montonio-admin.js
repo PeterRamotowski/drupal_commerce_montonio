@@ -4,15 +4,17 @@
  */
 
 (function (Drupal) {
-  'use strict';
-
   /**
    * Updates default payment method options based on enabled methods.
    */
   Drupal.behaviors.montonioAdminForm = {
-    attach: function (context, settings) {
-      const enabledMethods = context.querySelectorAll('[name*="[enabled_payment_methods]"]');
-      const defaultMethod = context.querySelector('[name*="[default_payment_method]"]');
+    attach(context, settings) {
+      const enabledMethods = context.querySelectorAll(
+        '[name*="[enabled_payment_methods]"]'
+      );
+      const defaultMethod = context.querySelector(
+        '[name*="[default_payment_method]"]'
+      );
 
       if (enabledMethods.length && defaultMethod) {
         const allOptions = {};
@@ -23,7 +25,7 @@
           }
         });
 
-        function updateDefaultMethodOptions() {
+        const updateDefaultMethodOptions = () => {
           const selectedValue = defaultMethod.value;
 
           const enabledValues = [];
@@ -55,7 +57,7 @@
               defaultMethod.appendChild(option);
             });
           }
-        }
+        };
 
         if (!enabledMethods[0].hasAttribute('data-montonio-processed')) {
           enabledMethods.forEach(function (checkbox) {
@@ -64,7 +66,6 @@
           });
         }
       }
-    }
+    },
   };
-
 })(Drupal);
