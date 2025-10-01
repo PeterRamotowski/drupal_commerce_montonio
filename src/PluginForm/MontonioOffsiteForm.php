@@ -357,8 +357,8 @@ class MontonioOffsiteForm extends PaymentOffsiteForm implements ContainerInjecti
 
     $limits = [
       1 => ['min' => 30, 'max' => 800, 'label' => $this->t('Pay next month')],
-      2 => ['min' => 75, 'max' => 2500, 'label' => $this->t('Split into 2 monthly instalments')],
-      3 => ['min' => 75, 'max' => 2500, 'label' => $this->t('Split into 3 monthly instalments')],
+      2 => ['min' => 75, 'max' => 2500, 'label' => $this->t('Split into 2 monthly installments')],
+      3 => ['min' => 75, 'max' => 2500, 'label' => $this->t('Split into 3 monthly installments')],
     ];
 
     foreach ($limits as $period => $limit) {
