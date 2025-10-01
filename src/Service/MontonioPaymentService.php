@@ -42,6 +42,8 @@ class MontonioPaymentService {
    *   The selected payment method.
    * @param string|null $preferredBank
    *   The preferred bank for payment initiation.
+   * @param int|null $bnplPeriod
+   *   The BNPL period (1, 2, or 3).
    *
    * @return array
    *   The payment redirect data.
@@ -54,6 +56,7 @@ class MontonioPaymentService {
     PaymentGatewayInterface $gateway,
     string $paymentMethod,
     ?string $preferredBank = NULL,
+    ?int $bnplPeriod = NULL,
   ): array {
     $apiClient = $this->apiClientFactory->createFromPaymentGateway($gateway);
 
@@ -71,7 +74,7 @@ class MontonioPaymentService {
     $this->paymentMethodValidator->validatePaymentMethodSelection($paymentMethod, $availableMethods);
     $this->paymentMethodValidator->validateBankSelection($preferredBank, $paymentMethod);
 
-    $orderData = $this->buildOrderData($order, $gateway, $paymentMethod, $preferredBank);
+    $orderData = $this->buildOrderData($order, $gateway, $paymentMethod, $preferredBank, $bnplPeriod);
 
     return $apiClient->createOrder($orderData);
   }
@@ -115,6 +118,8 @@ class MontonioPaymentService {
    *   The selected payment method.
    * @param string|null $preferredBank
    *   The preferred bank.
+   * @param int|null $bnplPeriod
+   *   The BNPL period (1, 2, or 3).
    *
    * @return array
    *   The order data array.
@@ -124,6 +129,7 @@ class MontonioPaymentService {
     PaymentGatewayInterface $gateway,
     string $paymentMethod,
     ?string $preferredBank = NULL,
+    ?int $bnplPeriod = NULL,
   ): array {
     $amount = $order->getTotalPrice();
     $billingProfile = $order->getBillingProfile();
@@ -170,6 +176,12 @@ class MontonioPaymentService {
       if ($preferredBank) {
         $methodOptions['preferredProvider'] = $preferredBank;
       }
+    }
+
+    if ($paymentMethod === 'bnpl') {
+      $methodOptions = [
+        'period' => (int) $bnplPeriod ?? 1,
+      ];
     }
 
     $this->orderNumber->setOrderNumber($order);

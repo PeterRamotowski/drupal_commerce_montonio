@@ -96,6 +96,30 @@ class MontonioOffsiteForm extends PaymentOffsiteForm implements ContainerInjecti
       }
     }
 
+    if (isset($enabledMethods['bnpl'])) {
+      $bnplOptions = $this->buildBnplPeriodOptions($order);
+      if (!empty($bnplOptions)) {
+        $form['bnpl_period'] = [
+          '#type' => 'radios',
+          '#title' => $this->t('Select payment plan'),
+          '#options' => $bnplOptions,
+          '#default_value' => array_key_first($bnplOptions),
+          '#weight' => -8,
+          '#wrapper_attributes' => [
+            'style' => $defaultMethod !== 'bnpl' ? 'display: none;' : '',
+          ],
+          '#states' => [
+            'visible' => [
+              ':input[name="payment_process[offsite_payment][payment_method]"]' => ['value' => 'bnpl'],
+            ],
+            'required' => [
+              ':input[name="payment_process[offsite_payment][payment_method]"]' => ['value' => 'bnpl'],
+            ],
+          ],
+        ];
+      }
+    }
+
     $form['actions'] = [
       '#type' => 'actions',
       '#weight' => 100,
@@ -169,6 +193,14 @@ class MontonioOffsiteForm extends PaymentOffsiteForm implements ContainerInjecti
     ) {
       $form_state->setError($form['preferred_bank'], $this->t('Please select your bank.'));
     }
+
+    if (
+      $selectedMethod === 'bnpl'
+      && isset($form['bnpl_period'])
+      && empty(NestedArray::getValue($values, $form['bnpl_period']['#parents']))
+    ) {
+      $form_state->setError($form['bnpl_period'], $this->t('Please select a payment plan.'));
+    }
   }
 
   /**
@@ -196,11 +228,17 @@ class MontonioOffsiteForm extends PaymentOffsiteForm implements ContainerInjecti
       $preferredBank = NestedArray::getValue($values, $form['preferred_bank']['#parents']);
     }
 
+    $bnplPeriod = NULL;
+    if (isset($form['bnpl_period'])) {
+      $bnplPeriod = NestedArray::getValue($values, $form['bnpl_period']['#parents']);
+    }
+
     $response = $this->paymentService->processPayment(
       $order,
       $paymentGateway,
       $selectedMethod,
-      $preferredBank
+      $preferredBank,
+      $bnplPeriod
     );
 
     if (!$response || !isset($response['paymentUrl'])) {
@@ -270,6 +308,34 @@ class MontonioOffsiteForm extends PaymentOffsiteForm implements ContainerInjecti
             'image' => $bank['logoUrl'],
           ];
         }
+      }
+    }
+
+    return $options;
+  }
+
+  /**
+   * Builds BNPL period options based on order value.
+   *
+   * @param \Drupal\commerce_order\Entity\OrderInterface $order
+   *   The order entity.
+   *
+   * @return array
+   *   Array of available BNPL period options.
+   */
+  protected function buildBnplPeriodOptions(OrderInterface $order): array {
+    $options = [];
+    $orderAmount = (float) $order->getTotalPrice()->getNumber();
+
+    $limits = [
+      1 => ['min' => 30, 'max' => 800, 'label' => $this->t('Pay next month')],
+      2 => ['min' => 75, 'max' => 2500, 'label' => $this->t('Split into 2 monthly instalments')],
+      3 => ['min' => 75, 'max' => 2500, 'label' => $this->t('Split into 3 monthly instalments')],
+    ];
+
+    foreach ($limits as $period => $limit) {
+      if ($orderAmount >= $limit['min'] && $orderAmount <= $limit['max']) {
+        $options[$period] = $limit['label'];
       }
     }
 
