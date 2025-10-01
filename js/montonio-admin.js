@@ -10,10 +10,10 @@
   Drupal.behaviors.montonioAdminForm = {
     attach(context, settings) {
       const enabledMethods = context.querySelectorAll(
-        '[name*="[enabled_payment_methods]"]'
+        '[name*="[enabled_payment_methods]"]',
       );
       const defaultMethod = context.querySelector(
-        '[name*="[default_payment_method]"]'
+        '[name*="[default_payment_method]"]',
       );
 
       if (enabledMethods.length && defaultMethod) {
