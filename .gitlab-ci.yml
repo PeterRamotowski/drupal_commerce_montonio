@@ -7,4 +7,4 @@ include:
       - '/includes/include.drupalci.workflows.yml'
 
 variables:
-  _CSPELL_WORDS: 'piotr, ramotowski'
+  _CSPELL_WORDS: 'piotr, ramotowski, blik, bnpl, dudek'
