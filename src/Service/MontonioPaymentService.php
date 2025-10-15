@@ -180,7 +180,7 @@ class MontonioPaymentService {
 
     if ($paymentMethod === 'bnpl') {
       $methodOptions = [
-        'period' => (int) $bnplPeriod ?? 1,
+        'period' => (int) ($bnplPeriod ?? 1),
       ];
     }
 

@@ -31,7 +31,7 @@ class OrderNumber {
       $orderTypeStorage = $this->entityTypeManager->getStorage('commerce_order_type');
       /** @var \Drupal\commerce_order\Entity\OrderTypeInterface $orderType */
       $orderType = $orderTypeStorage->load($order->bundle());
-      /** @var \Drupal\commerce_number_pattern\Entity\NumberPatternInterface $numberPattern */
+      /** @var \Drupal\commerce_number_pattern\Entity\NumberPatternInterface|null $numberPattern */
       $numberPattern = $orderType->getNumberPattern();
       if ($numberPattern) {
         $orderNumber = $numberPattern->getPlugin()->generate($order);

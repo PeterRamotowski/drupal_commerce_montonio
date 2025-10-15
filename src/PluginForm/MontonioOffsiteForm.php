@@ -386,7 +386,7 @@ class MontonioOffsiteForm extends PaymentOffsiteForm implements ContainerInjecti
       return self::DEFAULT_COUNTRY_CODE;
     }
 
-    /** @var \Drupal\address\AddressInterface $billingAddress */
+    /** @var \Drupal\address\AddressInterface|null $billingAddress */
     $billingAddress = $billingProfile->get('address')->first();
 
     if (!$billingAddress || !$billingAddress->getCountryCode()) {
