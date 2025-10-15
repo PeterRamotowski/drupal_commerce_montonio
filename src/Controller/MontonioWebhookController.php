@@ -111,14 +111,14 @@ class MontonioWebhookController implements ContainerInjectionInterface {
       $order_token = $request->query->get('order-token');
 
       if (!$this->webhookValidator->validateWebhookSource($request)) {
-        return new Response('Unauthorized', 403);
+        return new Response('Unauthorized', Response::HTTP_FORBIDDEN);
       }
 
       if (!$order_token) {
         $this->montonioLogger->warning('Webhook received without orderToken for gateway @gateway', [
           '@gateway' => $commerce_payment_gateway->id(),
         ]);
-        return new Response('Missing orderToken', 400);
+        return new Response('Missing orderToken', Response::HTTP_BAD_REQUEST);
       }
 
       $gateway_plugin = $commerce_payment_gateway->getPlugin();
@@ -134,7 +134,7 @@ class MontonioWebhookController implements ContainerInjectionInterface {
           '@gateway' => $commerce_payment_gateway->id(),
           '@error' => $e->getMessage(),
         ]);
-        return new Response('Invalid token', 400);
+        return new Response('Invalid token', Response::HTTP_BAD_REQUEST);
       }
 
       // Verify the access key matches.
@@ -142,7 +142,7 @@ class MontonioWebhookController implements ContainerInjectionInterface {
         $this->montonioLogger->error('Access key mismatch in webhook token for gateway @gateway', [
           '@gateway' => $commerce_payment_gateway->id(),
         ]);
-        return new Response('Access key mismatch', 403);
+        return new Response('Access key mismatch', Response::HTTP_FORBIDDEN);
       }
 
       $order = $this->orderRepository->findOrderByReference($decodedToken->getMerchantReference());
@@ -151,7 +151,7 @@ class MontonioWebhookController implements ContainerInjectionInterface {
         $this->montonioLogger->warning('Order not found for merchant reference @ref in webhook', [
           '@ref' => $decodedToken->getMerchantReference(),
         ]);
-        return new Response('Order not found', 404);
+        return new Response('Order not found', Response::HTTP_NOT_FOUND);
       }
 
       $this->paymentService->processWebhook($decodedToken, $order, $commerce_payment_gateway);
@@ -161,13 +161,13 @@ class MontonioWebhookController implements ContainerInjectionInterface {
         '@status' => $decodedToken->getPaymentStatus(),
       ]);
 
-      return new Response('OK', 200);
+      return new Response('OK', Response::HTTP_OK);
     }
     catch (\Exception $e) {
       $this->montonioLogger->error('Error processing webhook: @error', [
         '@error' => $e->getMessage(),
       ]);
-      return new Response('Internal server error', 500);
+      return new Response('Internal server error', Response::HTTP_INTERNAL_SERVER_ERROR);
     }
   }
 
