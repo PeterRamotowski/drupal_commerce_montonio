@@ -144,10 +144,10 @@ class MontonioPaymentService {
         ->toArray();
     }
 
-    $shippingProfile = NULL;
+    $profiles = $order->collectProfiles();
 
     /** @var \Drupal\address\AddressInterface|null $shippingAddress */
-    $shippingAddress = $shippingProfile ? $shippingProfile->get('address')->first() : NULL;
+    $shippingAddress = isset($profiles['shipping']) ? $profiles['shipping']->get('address')->first() : NULL;
 
     $montonioShippingAddress = $montonioBillingAddress;
     if ($shippingAddress) {
