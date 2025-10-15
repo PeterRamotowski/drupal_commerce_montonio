@@ -8,8 +8,7 @@ use Drupal\commerce_montonio\Service\MontonioLogger;
 use Drupal\commerce_montonio\Service\MontonioPaymentService;
 use Drupal\commerce_montonio\Service\WebhookValidator;
 use Drupal\commerce_payment\Entity\PaymentGatewayInterface;
-use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,14 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Handles Montonio webhook notifications.
  */
-class MontonioWebhookController extends ControllerBase {
-
-  /**
-   * The entity type manager.
-   *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
-   */
-  protected $entityTypeManager;
+class MontonioWebhookController implements ContainerInjectionInterface {
 
   /**
    * The Montonio API client factory.
@@ -64,8 +56,6 @@ class MontonioWebhookController extends ControllerBase {
   /**
    * Constructs a new MontonioWebhookController object.
    *
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
-   *   The entity type manager.
    * @param \Drupal\commerce_montonio\Service\MontonioApiClientFactory $apiClientFactory
    *   The Montonio API client factory.
    * @param \Drupal\commerce_montonio\Service\MontonioLogger $montonioLogger
@@ -78,14 +68,12 @@ class MontonioWebhookController extends ControllerBase {
    *   The webhook validator service.
    */
   public function __construct(
-    EntityTypeManagerInterface $entityTypeManager,
     MontonioApiClientFactory $apiClientFactory,
     MontonioLogger $montonioLogger,
     MontonioPaymentService $paymentService,
     OrderRepositoryInterface $orderRepository,
     WebhookValidator $webhookValidator,
   ) {
-    $this->entityTypeManager = $entityTypeManager;
     $this->apiClientFactory = $apiClientFactory;
     $this->montonioLogger = $montonioLogger;
     $this->paymentService = $paymentService;
@@ -98,7 +86,6 @@ class MontonioWebhookController extends ControllerBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity_type.manager'),
       $container->get('commerce_montonio.api_client_factory'),
       $container->get('commerce_montonio.logger'),
       $container->get('commerce_montonio.payment_service'),
