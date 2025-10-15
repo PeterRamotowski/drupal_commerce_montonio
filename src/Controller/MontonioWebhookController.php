@@ -2,6 +2,7 @@
 
 namespace Drupal\commerce_montonio\Controller;
 
+use Drupal\commerce_montonio\Exception\MontonioJwtException;
 use Drupal\commerce_montonio\Repository\OrderRepositoryInterface;
 use Drupal\commerce_montonio\Service\MontonioApiClientFactory;
 use Drupal\commerce_montonio\Service\MontonioLogger;
@@ -125,11 +126,13 @@ class MontonioWebhookController implements ContainerInjectionInterface {
 
       $apiClient = $this->apiClientFactory->createFromPaymentGateway($commerce_payment_gateway);
 
-      $decodedToken = $apiClient->decodeToken($order_token);
-
-      if (!$decodedToken) {
-        $this->montonioLogger->error('Invalid order token received in webhook for gateway @gateway', [
+      try {
+        $decodedToken = $apiClient->decodeToken($order_token);
+      }
+      catch (MontonioJwtException $e) {
+        $this->montonioLogger->error('Invalid order token received in webhook for gateway @gateway: @error', [
           '@gateway' => $commerce_payment_gateway->id(),
+          '@error' => $e->getMessage(),
         ]);
         return new Response('Invalid token', 400);
       }
