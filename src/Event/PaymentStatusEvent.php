@@ -18,7 +18,7 @@ class PaymentStatusEvent extends Event {
   public const PAYMENT_STATUS_CHANGED = 'commerce_montonio.payment_status_changed';
 
   /**
-   * Constructs a new PaymentStatusEvent.
+   * Constructs a new PaymentStatusEvent object.
    *
    * @param \Drupal\commerce_montonio\Dto\MontonioTokenDto $token
    *   The decoded Montonio token.

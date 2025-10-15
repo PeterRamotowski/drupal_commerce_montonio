@@ -13,7 +13,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 class PaymentEventDispatcher {
 
   /**
-   * Constructs a new PaymentEventDispatcher.
+   * Constructs a new PaymentEventDispatcher object.
    *
    * @param \Symfony\Contracts\EventDispatcher\EventDispatcherInterface $eventDispatcher
    *   The Symfony event dispatcher.

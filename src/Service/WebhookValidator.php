@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Request;
 class WebhookValidator {
 
   /**
-   * Constructs a new MontonioApiClient object.
+   * Constructs a new WebhookValidator object.
    *
    * @param \Drupal\commerce_montonio\Service\MontonioLogger $montonioLogger
    *   The logger service.

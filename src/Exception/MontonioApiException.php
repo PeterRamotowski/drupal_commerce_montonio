@@ -18,7 +18,7 @@ class MontonioApiException extends MontonioException {
   protected ?string $responseBody;
 
   /**
-   * Constructs a new MontonioApiException.
+   * Constructs a new MontonioApiException object.
    *
    * @param string $message
    *   The exception message.

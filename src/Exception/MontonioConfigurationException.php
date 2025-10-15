@@ -8,7 +8,7 @@ namespace Drupal\commerce_montonio\Exception;
 class MontonioConfigurationException extends MontonioException {
 
   /**
-   * Constructs a new MontonioConfigurationException.
+   * Constructs a new MontonioConfigurationException object.
    *
    * @param string $message
    *   The exception message.

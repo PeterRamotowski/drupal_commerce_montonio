@@ -13,7 +13,7 @@ class MontonioException extends \Exception {
   protected array $context;
 
   /**
-   * Constructs a new MontonioException.
+   * Constructs a new MontonioException object.
    *
    * @param string $message
    *   The exception message.

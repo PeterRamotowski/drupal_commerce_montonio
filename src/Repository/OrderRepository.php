@@ -17,7 +17,7 @@ class OrderRepository implements OrderRepositoryInterface {
   protected EntityStorageInterface $orderStorage;
 
   /**
-   * Constructs a new OrderRepository.
+   * Constructs a new OrderRepository object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.

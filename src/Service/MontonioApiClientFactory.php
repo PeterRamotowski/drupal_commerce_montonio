@@ -11,7 +11,7 @@ use Drupal\commerce_payment\Plugin\Commerce\PaymentGateway\PaymentGatewayInterfa
 class MontonioApiClientFactory {
 
   /**
-   * Constructs a MontonioApiClientFactory object.
+   * Constructs a new MontonioApiClientFactory object.
    *
    * @param MontonioApiClient $apiClient
    *   Montonio API client.

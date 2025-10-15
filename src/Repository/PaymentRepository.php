@@ -17,7 +17,7 @@ class PaymentRepository implements PaymentRepositoryInterface {
   protected EntityStorageInterface $paymentStorage;
 
   /**
-   * Constructs a new PaymentRepository.
+   * Constructs a new PaymentRepository object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
