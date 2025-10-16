@@ -20,41 +20,6 @@ use Symfony\Component\HttpFoundation\Response;
 class MontonioWebhookController implements ContainerInjectionInterface {
 
   /**
-   * The Montonio API client factory.
-   *
-   * @var \Drupal\commerce_montonio\Service\MontonioApiClientFactory
-   */
-  protected $apiClientFactory;
-
-  /**
-   * Montonio logger.
-   *
-   * @var \Drupal\commerce_montonio\Service\MontonioLogger
-   */
-  protected $montonioLogger;
-
-  /**
-   * Montonio payment service.
-   *
-   * @var \Drupal\commerce_montonio\Service\MontonioPaymentService
-   */
-  protected $paymentService;
-
-  /**
-   * Order repository.
-   *
-   * @var \Drupal\commerce_montonio\Repository\OrderRepositoryInterface
-   */
-  protected $orderRepository;
-
-  /**
-   * The webhook validator service.
-   *
-   * @var \Drupal\commerce_montonio\Service\WebhookValidator
-   */
-  protected $webhookValidator;
-
-  /**
    * Constructs a new MontonioWebhookController object.
    *
    * @param \Drupal\commerce_montonio\Service\MontonioApiClientFactory $apiClientFactory
@@ -69,17 +34,12 @@ class MontonioWebhookController implements ContainerInjectionInterface {
    *   The webhook validator service.
    */
   public function __construct(
-    MontonioApiClientFactory $apiClientFactory,
-    MontonioLogger $montonioLogger,
-    MontonioPaymentService $paymentService,
-    OrderRepositoryInterface $orderRepository,
-    WebhookValidator $webhookValidator,
+    protected MontonioApiClientFactory $apiClientFactory,
+    protected MontonioLogger $montonioLogger,
+    protected MontonioPaymentService $paymentService,
+    protected OrderRepositoryInterface $orderRepository,
+    protected WebhookValidator $webhookValidator,
   ) {
-    $this->apiClientFactory = $apiClientFactory;
-    $this->montonioLogger = $montonioLogger;
-    $this->paymentService = $paymentService;
-    $this->orderRepository = $orderRepository;
-    $this->webhookValidator = $webhookValidator;
   }
 
   /**

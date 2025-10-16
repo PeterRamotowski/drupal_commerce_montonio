@@ -27,28 +27,28 @@ class MontonioApiClient implements MontonioApiClientInterface {
    *
    * @var string
    */
-  protected $accessKey;
+  protected string $accessKey;
 
   /**
    * Secret key.
    *
    * @var string
    */
-  protected $secretKey;
+  protected string $secretKey;
 
   /**
    * Whether to use sandbox mode.
    *
    * @var bool
    */
-  protected $sandboxMode;
+  protected bool $sandboxMode;
 
   /**
    * Whether to enable debug logging.
    *
    * @var bool
    */
-  protected $debug;
+  protected bool $debug;
 
   /**
    * Constructs a new MontonioApiClient object.

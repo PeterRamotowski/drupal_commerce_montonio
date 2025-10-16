@@ -3,6 +3,8 @@
 namespace Drupal\commerce_montonio\Plugin\Commerce\PaymentGateway;
 
 use Drupal\commerce_montonio\PluginForm\MontonioOffsiteForm;
+use Drupal\commerce_montonio\Repository\PaymentRepositoryInterface;
+use Drupal\commerce_montonio\Service\MontonioApiClientFactory;
 use Drupal\commerce_payment\Attribute\CommercePaymentGateway;
 use Drupal\commerce_payment\Plugin\Commerce\PaymentGateway\OffsitePaymentGatewayBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -34,14 +36,14 @@ class Montonio extends OffsitePaymentGatewayBase {
    *
    * @var \Drupal\commerce_montonio\Service\MontonioApiClientFactory
    */
-  protected $apiClientFactory;
+  protected MontonioApiClientFactory $apiClientFactory;
 
   /**
    * The payment repository.
    *
    * @var \Drupal\commerce_montonio\Repository\PaymentRepositoryInterface
    */
-  protected $paymentRepository;
+  protected PaymentRepositoryInterface $paymentRepository;
 
   /**
    * {@inheritdoc}
