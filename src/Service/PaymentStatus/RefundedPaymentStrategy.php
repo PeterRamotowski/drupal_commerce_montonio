@@ -7,9 +7,9 @@ use Drupal\commerce_order\Entity\OrderInterface;
 use Drupal\commerce_payment\Entity\PaymentGatewayInterface;
 
 /**
- * Strategy for handling PARTIALLY_REFUNDED and REFUNDED payment statuses.
+ * Strategy for handling fully refunded payments.
  */
-class RefundPaymentStrategy extends AbstractPaymentStatusStrategy implements PaymentStatusStrategyInterface {
+class RefundedPaymentStrategy extends AbstractRefundPaymentStrategy implements PaymentStatusStrategyInterface {
 
   /**
    * {@inheritdoc}
@@ -25,14 +25,18 @@ class RefundPaymentStrategy extends AbstractPaymentStatusStrategy implements Pay
       return;
     }
 
-    $newState = $token->getPaymentStatus() === 'PARTIALLY_REFUNDED' ? 'partially_refunded' : 'refunded';
-    $payment->setState($newState);
+    $refundAmount = $this->resolveRefundPrice($token) ?? $payment->getAmount();
+    if ($refundAmount) {
+      $payment->setRefundedAmount($refundAmount);
+    }
+
+    $payment->setState('refunded');
     $payment->setRemoteState($token->getPaymentStatus());
     $this->paymentRepository->save($payment);
 
-    $this->logger->info('Payment @payment updated to @status', [
+    $this->logger->info('Payment @payment marked as refunded for order id @order', [
       '@payment' => $payment->id(),
-      '@status' => $token->getPaymentStatus(),
+      '@order' => $order->id(),
     ]);
   }
 
@@ -40,7 +44,7 @@ class RefundPaymentStrategy extends AbstractPaymentStatusStrategy implements Pay
    * {@inheritdoc}
    */
   public function getStatus(): string {
-    return 'REFUND';
+    return 'REFUNDED';
   }
 
 }

@@ -36,8 +36,12 @@ services:
     class: Drupal\commerce_montonio\Service\PaymentStatus\PaidPaymentStrategy
     arguments: ['@commerce_montonio.logger', '@commerce_montonio.payment_repository']
 
-  commerce_montonio.payment_status_strategy.refund:
-    class: Drupal\commerce_montonio\Service\PaymentStatus\RefundPaymentStrategy
+  commerce_montonio.payment_status_strategy.refunded:
+    class: Drupal\commerce_montonio\Service\PaymentStatus\RefundedPaymentStrategy
+    arguments: ['@commerce_montonio.logger', '@commerce_montonio.payment_repository']
+
+  commerce_montonio.payment_status_strategy.partially_refunded:
+    class: Drupal\commerce_montonio\Service\PaymentStatus\PartiallyRefundedPaymentStrategy
     arguments: ['@commerce_montonio.logger', '@commerce_montonio.payment_repository']
 
   commerce_montonio.payment_status_strategy.voided:
@@ -57,7 +61,8 @@ services:
     arguments: ['@commerce_montonio.logger']
     calls:
       - [addStrategy, ['@commerce_montonio.payment_status_strategy.paid']]
-      - [addStrategy, ['@commerce_montonio.payment_status_strategy.refund']]
+      - [addStrategy, ['@commerce_montonio.payment_status_strategy.refunded']]
+      - [addStrategy, ['@commerce_montonio.payment_status_strategy.partially_refunded']]
       - [addStrategy, ['@commerce_montonio.payment_status_strategy.voided']]
       - [addStrategy, ['@commerce_montonio.payment_status_strategy.abandoned']]
       - [addStrategy, ['@commerce_montonio.payment_status_strategy.authorized']]
