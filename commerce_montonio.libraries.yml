@@ -3,6 +3,7 @@ admin:
     js/montonio-admin.js: {}
   dependencies:
     - core/drupal
+    - core/once
 
 image_radios:
   css:

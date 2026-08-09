@@ -3,25 +3,36 @@
  * Admin form enhancements for Montonio payment gateway configuration.
  */
 
-(function (Drupal) {
+(function (Drupal, once) {
+  'use strict';
+
   /**
    * Updates default payment method options based on enabled methods.
    */
   Drupal.behaviors.montonioAdminForm = {
     attach(context, settings) {
-      const enabledMethods = context.querySelectorAll(
+      once(
+        'montonio-admin',
         '[name*="[enabled_payment_methods]"]',
-      );
-      const defaultMethod = context.querySelector(
-        '[name*="[default_payment_method]"]',
-      );
+        context,
+      ).forEach(function (checkbox) {
+        const defaultMethod = document.querySelector(
+          '[name*="[default_payment_method]"]',
+        );
 
-      if (enabledMethods.length && defaultMethod) {
+        if (!defaultMethod) {
+          return;
+        }
+
+        const enabledMethods = document.querySelectorAll(
+          '[name*="[enabled_payment_methods]"]',
+        );
+
         const allOptions = {};
-        enabledMethods.forEach(function (checkbox) {
-          const label = checkbox.parentElement.querySelector('label');
+        enabledMethods.forEach(function (cb) {
+          const label = cb.parentElement.querySelector('label');
           if (label) {
-            allOptions[checkbox.value] = label.textContent;
+            allOptions[cb.value] = label.textContent;
           }
         });
 
@@ -29,9 +40,9 @@
           const selectedValue = defaultMethod.value;
 
           const enabledValues = [];
-          enabledMethods.forEach(function (checkbox) {
-            if (checkbox.checked) {
-              enabledValues.push(checkbox.value);
+          enabledMethods.forEach(function (cb) {
+            if (cb.checked) {
+              enabledValues.push(cb.value);
             }
           });
 
@@ -49,7 +60,8 @@
             if (enabledValues.includes(selectedValue)) {
               defaultMethod.value = selectedValue;
             }
-          } else {
+          }
+          else {
             Object.keys(allOptions).forEach(function (value) {
               const option = document.createElement('option');
               option.value = value;
@@ -59,13 +71,8 @@
           }
         };
 
-        if (!enabledMethods[0].hasAttribute('data-montonio-processed')) {
-          enabledMethods.forEach(function (checkbox) {
-            checkbox.setAttribute('data-montonio-processed', 'true');
-            checkbox.addEventListener('change', updateDefaultMethodOptions);
-          });
-        }
-      }
+        checkbox.addEventListener('change', updateDefaultMethodOptions);
+      });
     },
   };
-})(Drupal);
+})(Drupal, once);

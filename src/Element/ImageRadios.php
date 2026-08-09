@@ -2,7 +2,6 @@
 
 namespace Drupal\commerce_montonio\Element;
 
-use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Attribute\RenderElement;
 use Drupal\Core\Render\Element;
@@ -38,23 +37,15 @@ class ImageRadios extends Radios {
     &$complete_form,
   ) {
     foreach (Element::children($element) as $key) {
-      $rendered_image = '';
-
       if (isset($element[$key]['#title']['image'])) {
-        $image = [
+        $element[$key]['#title'] = [
           '#theme' => 'image',
           '#uri' => $element[$key]['#title']['image'],
           '#alt' => $element[$key]['#title']['label'],
           '#title' => $element[$key]['#title']['label'],
         ];
-        $rendered_image = \Drupal::service('renderer')->render($image);
       }
 
-      $title = new FormattableMarkup('@image', [
-        '@image' => $rendered_image,
-      ]);
-
-      $element[$key]['#title'] = $title;
       $element[$key]['#wrapper_attributes']['class'][] = 'image-radios__item';
       $element[$key]['#attributes']['class'][] = 'visually-hidden';
     }

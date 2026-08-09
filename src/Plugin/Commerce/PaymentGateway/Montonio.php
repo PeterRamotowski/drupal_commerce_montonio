@@ -102,11 +102,13 @@ class Montonio extends OffsitePaymentGatewayBase {
     ];
 
     $form['secret_key'] = [
-      '#type' => 'textfield',
+      '#type' => 'password',
       '#title' => $this->t('Secret Key'),
-      '#description' => $this->t('Your Montonio Secret Key from the Partner System. Keep this secure!'),
-      '#default_value' => $this->configuration['secret_key'],
-      '#required' => TRUE,
+      '#description' => !empty($this->configuration['secret_key'])
+        ? $this->t('Your Montonio Secret Key. Leave blank to keep the existing key.')
+        : $this->t('Your Montonio Secret Key from the Partner System.'),
+      '#required' => empty($this->configuration['secret_key']),
+      '#attributes' => ['autocomplete' => 'off'],
     ];
 
     $payment_method_options = [
@@ -164,7 +166,10 @@ class Montonio extends OffsitePaymentGatewayBase {
       $values = $form_state->getValue($form['#parents']);
       $enabled_payment_methods = array_filter($values['enabled_payment_methods']);
       $this->configuration['access_key'] = $values['access_key'];
-      $this->configuration['secret_key'] = $values['secret_key'];
+      // Only update the secret key if a new value was provided.
+      if (!empty($values['secret_key'])) {
+        $this->configuration['secret_key'] = $values['secret_key'];
+      }
       $this->configuration['default_payment_method'] = $values['default_payment_method'];
       $this->configuration['enabled_payment_methods'] = array_values($enabled_payment_methods);
       $this->configuration['debug'] = $values['debug'];
