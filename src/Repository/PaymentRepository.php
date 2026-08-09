@@ -3,7 +3,6 @@
 namespace Drupal\commerce_montonio\Repository;
 
 use Drupal\commerce_payment\Entity\PaymentInterface;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 
 /**
@@ -12,28 +11,25 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 class PaymentRepository implements PaymentRepositoryInterface {
 
   /**
-   * The payment storage service.
-   */
-  protected EntityStorageInterface $paymentStorage;
-
-  /**
    * Constructs a new PaymentRepository object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
    */
-  public function __construct(EntityTypeManagerInterface $entityTypeManager) {
-    $this->paymentStorage = $entityTypeManager->getStorage('commerce_payment');
-  }
+  public function __construct(
+    protected EntityTypeManagerInterface $entityTypeManager,
+  ) {}
 
   /**
    * {@inheritdoc}
    */
   public function findByRemoteIdAndOrderId(string $remoteId, int $orderId): ?PaymentInterface {
-    $payments = $this->paymentStorage->loadByProperties([
-      'remote_id' => $remoteId,
-      'order_id' => $orderId,
-    ]);
+    $payments = $this->entityTypeManager
+      ->getStorage('commerce_payment')
+      ->loadByProperties([
+        'remote_id' => $remoteId,
+        'order_id' => $orderId,
+      ]);
 
     if (empty($payments)) {
       return NULL;
@@ -50,9 +46,11 @@ class PaymentRepository implements PaymentRepositoryInterface {
    */
   public function findByOrderId(int $orderId): array {
     /** @var \Drupal\commerce_payment\Entity\PaymentInterface[] $payments */
-    $payments = $this->paymentStorage->loadByProperties([
-      'order_id' => $orderId,
-    ]);
+    $payments = $this->entityTypeManager
+      ->getStorage('commerce_payment')
+      ->loadByProperties([
+        'order_id' => $orderId,
+      ]);
     return $payments;
   }
 
@@ -61,10 +59,12 @@ class PaymentRepository implements PaymentRepositoryInterface {
    */
   public function findByOrderIdAndState(int $orderId, string $state): array {
     /** @var \Drupal\commerce_payment\Entity\PaymentInterface[] $payments */
-    $payments = $this->paymentStorage->loadByProperties([
-      'order_id' => $orderId,
-      'state' => $state,
-    ]);
+    $payments = $this->entityTypeManager
+      ->getStorage('commerce_payment')
+      ->loadByProperties([
+        'order_id' => $orderId,
+        'state' => $state,
+      ]);
     return $payments;
   }
 
@@ -73,7 +73,9 @@ class PaymentRepository implements PaymentRepositoryInterface {
    */
   public function create(array $paymentData): PaymentInterface {
     /** @var \Drupal\commerce_payment\Entity\PaymentInterface $payment */
-    $payment = $this->paymentStorage->create($paymentData);
+    $payment = $this->entityTypeManager
+      ->getStorage('commerce_payment')
+      ->create($paymentData);
     return $payment;
   }
 
@@ -96,11 +98,13 @@ class PaymentRepository implements PaymentRepositoryInterface {
    */
   public function findCompletedByOrderIdAndPaymentGateway(int $orderId, string $paymentGatewayId): array {
     /** @var \Drupal\commerce_payment\Entity\PaymentInterface[] $payments */
-    $payments = $this->paymentStorage->loadByProperties([
-      'order_id' => $orderId,
-      'payment_gateway' => $paymentGatewayId,
-      'state' => 'completed',
-    ]);
+    $payments = $this->entityTypeManager
+      ->getStorage('commerce_payment')
+      ->loadByProperties([
+        'order_id' => $orderId,
+        'payment_gateway' => $paymentGatewayId,
+        'state' => 'completed',
+      ]);
     return $payments;
   }
 

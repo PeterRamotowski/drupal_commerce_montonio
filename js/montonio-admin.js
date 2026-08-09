@@ -4,8 +4,6 @@
  */
 
 (function (Drupal, once) {
-  'use strict';
-
   /**
    * Updates default payment method options based on enabled methods.
    */
@@ -60,8 +58,7 @@
             if (enabledValues.includes(selectedValue)) {
               defaultMethod.value = selectedValue;
             }
-          }
-          else {
+          } else {
             Object.keys(allOptions).forEach(function (value) {
               const option = document.createElement('option');
               option.value = value;

@@ -3,7 +3,6 @@
 namespace Drupal\commerce_montonio\Repository;
 
 use Drupal\commerce_order\Entity\OrderInterface;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 
 /**
@@ -12,27 +11,24 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 class OrderRepository implements OrderRepositoryInterface {
 
   /**
-   * The order storage service.
-   */
-  protected EntityStorageInterface $orderStorage;
-
-  /**
    * Constructs a new OrderRepository object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
    */
-  public function __construct(EntityTypeManagerInterface $entityTypeManager) {
-    $this->orderStorage = $entityTypeManager->getStorage('commerce_order');
-  }
+  public function __construct(
+    protected EntityTypeManagerInterface $entityTypeManager,
+  ) {}
 
   /**
    * {@inheritdoc}
    */
   public function findOrderByReference(string $merchantReference): ?OrderInterface {
-    $orders = $this->orderStorage->loadByProperties([
-      'order_number' => $merchantReference,
-    ]);
+    $orders = $this->entityTypeManager
+      ->getStorage('commerce_order')
+      ->loadByProperties([
+        'order_number' => $merchantReference,
+      ]);
 
     if (empty($orders)) {
       return NULL;
