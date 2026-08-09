@@ -2,7 +2,7 @@
 
 namespace Drupal\commerce_montonio\Service;
 
-use Drupal\Core\Logger\LoggerChannelInterface;
+use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 
 /**
@@ -11,11 +11,17 @@ use Psr\Log\LogLevel;
 class MontonioLogger {
 
   /**
-   * The logger channel.
+   * The logger.
    */
-  protected LoggerChannelInterface $logger;
+  protected LoggerInterface $logger;
 
-  public function __construct(LoggerChannelInterface $logger) {
+  /**
+   * Constructs a new MontonioLogger object.
+   *
+   * @param \Psr\Log\LoggerInterface $logger
+   *   The logger.
+   */
+  public function __construct(LoggerInterface $logger) {
     $this->logger = $logger;
   }
 

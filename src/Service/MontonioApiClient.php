@@ -2,6 +2,7 @@
 
 namespace Drupal\commerce_montonio\Service;
 
+use Drupal\Core\Cache\CacheBackendInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use Drupal\commerce_montonio\Dto\MontonioTokenDto;
@@ -59,11 +60,14 @@ class MontonioApiClient implements MontonioApiClientInterface {
    *   The logger service.
    * @param \Drupal\commerce_montonio\Service\MontonioJwtService $jwtService
    *   The JWT service for token operations.
+   * @param \Drupal\Core\Cache\CacheBackendInterface|null $cache
+   *   Optional cache backend for payment method responses.
    */
   public function __construct(
     protected ClientInterface $httpClient,
     protected MontonioLogger $montonioLogger,
     protected MontonioJwtService $jwtService,
+    protected ?CacheBackendInterface $cache = NULL,
   ) {}
 
   /**
@@ -144,37 +148,32 @@ class MontonioApiClient implements MontonioApiClientInterface {
    *   If the API request fails.
    */
   public function getPaymentMethods(): array {
-    try {
-      $token = $this->generateToken([]);
-      $response = $this->httpClient->request('GET', $this->getBaseUrl() . '/stores/payment-methods', [
-        'headers' => [
-          'Authorization' => 'Bearer ' . $token,
-          'Content-Type' => 'application/json',
-        ],
-      ]);
+    $cid = 'commerce_montonio:payment_methods:' . $this->accessKey . ':' . ($this->sandboxMode ? 'sandbox' : 'live');
 
-      $data = json_decode($response->getBody()->getContents(), TRUE);
-
-      if (json_last_error() !== JSON_ERROR_NONE && $this->isDebugEnabled()) {
-        throw new MontonioApiException('Invalid JSON response from payment methods API.', $response->getStatusCode(), $response->getBody()->getContents());
+    if ($this->cache !== NULL) {
+      $cached = $this->cache->get($cid);
+      if ($cached !== FALSE) {
+        return $cached->data;
       }
-
-      if (!$data || !isset($data['paymentMethods'])) {
-        return [];
-      }
-
-      return $data['paymentMethods'];
     }
-    catch (RequestException $e) {
-      $this->montonioLogger->error('Failed to get payment methods: @error', ['@error' => $e->getMessage()]);
 
-      if ($this->isDebugEnabled()) {
-        throw new MontonioApiException('Failed to get payment methods: ' . $e->getMessage(), $e->getCode(), NULL, $e, [
-          'url' => $this->getBaseUrl() . '/stores/payment-methods',
-        ]);
-      }
+    $token = $this->generateToken([]);
+    $data = $this->sendRequest('GET', '/stores/payment-methods', [
+      'headers' => [
+        'Authorization' => 'Bearer ' . $token,
+        'Content-Type'  => 'application/json',
+      ],
+    ], 'get payment methods');
+
+    if (!$data || !isset($data['paymentMethods'])) {
       return [];
     }
+
+    if ($this->cache !== NULL) {
+      $this->cache->set($cid, $data['paymentMethods'], time() + 3600);
+    }
+
+    return $data['paymentMethods'];
   }
 
   /**
@@ -190,35 +189,12 @@ class MontonioApiClient implements MontonioApiClientInterface {
    *   If the API request fails.
    */
   public function createOrder(array $orderData): array {
-    try {
-      $token = $this->generateToken($orderData);
+    $token = $this->generateToken($orderData);
 
-      $response = $this->httpClient->request('POST', $this->getBaseUrl() . '/orders', [
-        'headers' => [
-          'Content-Type' => 'application/json',
-        ],
-        'json' => [
-          'data' => $token,
-        ],
-      ]);
-
-      $data = json_decode($response->getBody()->getContents(), TRUE);
-      if (json_last_error() !== JSON_ERROR_NONE && $this->isDebugEnabled()) {
-        throw new MontonioApiException('Invalid JSON response from create order API.', $response->getStatusCode(), $response->getBody()->getContents());
-      }
-
-      return $data;
-    }
-    catch (RequestException $e) {
-      $this->montonioLogger->error('Failed to create order: @error', ['@error' => $e->getMessage()]);
-
-      if ($this->isDebugEnabled()) {
-        throw new MontonioApiException('Failed to create order: ' . $e->getMessage(), $e->getCode(), NULL, $e, [
-          'url' => $this->getBaseUrl() . '/orders',
-        ]);
-      }
-      return [];
-    }
+    return $this->sendRequest('POST', '/orders', [
+      'headers' => ['Content-Type' => 'application/json'],
+      'json'    => ['data' => $token],
+    ], 'create order');
   }
 
   /**
@@ -231,33 +207,83 @@ class MontonioApiClient implements MontonioApiClientInterface {
    *   The order data.
    *
    * @throws \Drupal\commerce_montonio\Exception\MontonioApiException
-   *   If the API request fails.
+   *   If the API request fails or the UUID is invalid.
    */
   public function getOrder(string $orderUuid): array {
-    try {
-      $token = $this->generateToken([]);
-      $response = $this->httpClient->request('GET', $this->getBaseUrl() . '/orders/' . $orderUuid, [
-        'headers' => [
-          'Authorization' => 'Bearer ' . $token,
-          'Content-Type' => 'application/json',
-        ],
-      ]);
+    if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $orderUuid)) {
+      throw new MontonioApiException('Invalid Montonio order UUID: ' . $orderUuid);
+    }
 
-      $data = json_decode($response->getBody()->getContents(), TRUE);
-      if (json_last_error() !== JSON_ERROR_NONE && $this->isDebugEnabled()) {
-        throw new MontonioApiException('Invalid JSON response from get order API.', $response->getStatusCode(), $response->getBody()->getContents());
+    $token = $this->generateToken([]);
+
+    return $this->sendRequest('GET', '/orders/' . rawurlencode($orderUuid), [
+      'headers' => [
+        'Authorization' => 'Bearer ' . $token,
+        'Content-Type'  => 'application/json',
+      ],
+    ], 'get order');
+  }
+
+  /**
+   * Sends an authenticated HTTP request and returns the decoded JSON response.
+   *
+   * @param string $method
+   *   The HTTP method (GET, POST, etc.).
+   * @param string $endpoint
+   *   The API endpoint path (e.g. '/orders').
+   * @param array $options
+   *   Additional Guzzle request options merged with defaults.
+   * @param string $errorContext
+   *   A human-readable label used in error log messages.
+   *
+   * @return array
+   *   The decoded JSON response array.
+   *
+   * @throws \Drupal\commerce_montonio\Exception\MontonioApiException
+   *   If the request fails or the response contains invalid JSON.
+   */
+  private function sendRequest(
+    string $method,
+    string $endpoint,
+    array $options,
+    string $errorContext,
+  ): array {
+    try {
+      $response = $this->httpClient->request(
+        $method,
+        $this->getBaseUrl() . $endpoint,
+        array_merge(['connect_timeout' => 3, 'timeout' => 10], $options),
+      );
+
+      $body = (string) $response->getBody();
+      $data = json_decode($body, TRUE);
+
+      if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new MontonioApiException(
+          sprintf('Invalid JSON response from %s API.', $errorContext),
+          $response->getStatusCode(),
+          $body,
+        );
       }
 
-      return $data;
+      return $data ?? [];
     }
     catch (RequestException $e) {
-      $this->montonioLogger->error('Failed to get order: @error', ['@error' => $e->getMessage()]);
+      $this->montonioLogger->error(
+        sprintf('Failed to %s: @error', $errorContext),
+        ['@error' => $e->getMessage()],
+      );
 
       if ($this->isDebugEnabled()) {
-        throw new MontonioApiException('Failed to get order: ' . $e->getMessage(), $e->getCode(), NULL, $e, [
-          'url' => $this->getBaseUrl() . '/orders/' . $orderUuid,
-        ]);
+        throw new MontonioApiException(
+          sprintf('Failed to %s: %s', $errorContext, $e->getMessage()),
+          $e->getCode(),
+          NULL,
+          $e,
+          ['url' => $this->getBaseUrl() . $endpoint],
+        );
       }
+
       return [];
     }
   }

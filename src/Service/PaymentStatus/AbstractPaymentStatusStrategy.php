@@ -14,6 +14,14 @@ use Drupal\commerce_price\Price;
  */
 abstract class AbstractPaymentStatusStrategy {
 
+  /**
+   * Constructs a new AbstractPaymentStatusStrategy object.
+   *
+   * @param \Drupal\commerce_montonio\Service\MontonioLogger $logger
+   *   The Montonio logger service.
+   * @param \Drupal\commerce_montonio\Repository\PaymentRepositoryInterface $paymentRepository
+   *   The payment repository.
+   */
   public function __construct(
     protected MontonioLogger $logger,
     protected PaymentRepositoryInterface $paymentRepository,

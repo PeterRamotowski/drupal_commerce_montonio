@@ -5,6 +5,7 @@ namespace Drupal\Tests\commerce_montonio\Kernel;
 use Drupal\commerce_montonio\Controller\MontonioWebhookController;
 use Drupal\commerce_montonio\Dto\MontonioTokenDto;
 use Drupal\commerce_montonio\Service\MontonioApiClient;
+use Drupal\commerce_montonio\Service\MontonioApiClientFactory;
 use Drupal\commerce_order\Entity\Order;
 use Drupal\commerce_payment\Entity\Payment;
 use Drupal\commerce_payment\Entity\PaymentGateway;
@@ -12,6 +13,7 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\Tests\commerce_montonio\MontonioTestsTrait;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
+use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -96,7 +98,12 @@ class MontonioWebhookTest extends KernelTestBase {
     $currency_importer->import('EUR');
 
     $this->mockedApiClient = $this->prophesize(MontonioApiClient::class);
-    $this->container->set('commerce_montonio.api_client', $this->mockedApiClient->reveal());
+
+    // Mock the factory to return the mocked API client.
+    $mockFactory = $this->prophesize(MontonioApiClientFactory::class);
+    $mockFactory->createFromPaymentGateway(Argument::any())
+      ->willReturn($this->mockedApiClient->reveal());
+    $this->container->set('commerce_montonio.api_client_factory', $mockFactory->reveal());
 
     $this->gateway = PaymentGateway::create([
       'id' => 'montonio_test',
@@ -134,7 +141,6 @@ class MontonioWebhookTest extends KernelTestBase {
     $decodedTokenMock->getMerchantReference()->willReturn('12345');
     $decodedTokenMock->getAccessKey()->willReturn('test_access_key');
 
-    $this->mockedApiClient->setConfiguration('test_access_key', 'test_secret_key', TRUE, FALSE);
     $this->mockedApiClient->decodeToken('mock_jwt_token')
       ->willReturn($decodedTokenMock->reveal())
       ->shouldBeCalled();
@@ -170,7 +176,6 @@ class MontonioWebhookTest extends KernelTestBase {
    * Tests webhook notification with invalid token.
    */
   public function testWebhookNotificationInvalidToken() {
-    $this->mockedApiClient->setConfiguration('test_access_key', 'test_secret_key', TRUE, FALSE);
     $this->mockedApiClient->decodeToken('invalid_token')
       ->willThrow(new \Exception('Invalid token'))
       ->shouldBeCalled();
@@ -220,7 +225,6 @@ class MontonioWebhookTest extends KernelTestBase {
     $decodedTokenMock->getMerchantReference()->willReturn('12345');
     $decodedTokenMock->getAccessKey()->willReturn('test_access_key');
 
-    $this->mockedApiClient->setConfiguration('test_access_key', 'test_secret_key', TRUE, FALSE);
     $this->mockedApiClient->decodeToken('mock_jwt_token')
       ->willReturn($decodedTokenMock->reveal())
       ->shouldBeCalled();

@@ -46,6 +46,7 @@ class MontonioWebhookController implements ContainerInjectionInterface {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
+    // @phpstan-ignore new.static
     return new static(
       $container->get('commerce_montonio.api_client_factory'),
       $container->get('commerce_montonio.logger'),
@@ -112,6 +113,17 @@ class MontonioWebhookController implements ContainerInjectionInterface {
           '@ref' => $decodedToken->getMerchantReference(),
         ]);
         return new Response('Order not found', Response::HTTP_NOT_FOUND);
+      }
+
+      try {
+        $this->webhookValidator->validateTokenMatchesOrder($decodedToken, $order);
+      }
+      catch (MontonioJwtException $e) {
+        $this->montonioLogger->error('Webhook payload validation failed for order @order: @error', [
+          '@order' => $order->id(),
+          '@error' => $e->getMessage(),
+        ]);
+        return new Response('Payload validation failed', Response::HTTP_BAD_REQUEST);
       }
 
       $this->paymentService->processWebhook($decodedToken, $order, $commerce_payment_gateway);

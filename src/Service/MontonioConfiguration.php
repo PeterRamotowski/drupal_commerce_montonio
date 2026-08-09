@@ -2,6 +2,8 @@
 
 namespace Drupal\commerce_montonio\Service;
 
+use Drupal\commerce_montonio\Exception\MontonioConfigurationException;
+
 /**
  * Value object for Montonio payment gateway configuration.
  *
@@ -184,7 +186,7 @@ class MontonioConfiguration {
    * @param array $enabledPaymentMethods
    *   The enabled payment methods.
    *
-   * @throws \InvalidArgumentException
+   * @throws \Drupal\commerce_montonio\Exception\MontonioConfigurationException
    *   If the configuration is invalid.
    */
   private function ensureValidConfiguration(
@@ -194,19 +196,19 @@ class MontonioConfiguration {
     array $enabledPaymentMethods,
   ): void {
     if (empty($accessKey)) {
-      throw new \InvalidArgumentException('Access key is required.');
+      throw new MontonioConfigurationException('Access key is required.');
     }
 
     if (empty($secretKey)) {
-      throw new \InvalidArgumentException('Secret key is required.');
+      throw new MontonioConfigurationException('Secret key is required.');
     }
 
     if (empty($enabledPaymentMethods)) {
-      throw new \InvalidArgumentException('At least one payment method must be enabled.');
+      throw new MontonioConfigurationException('At least one payment method must be enabled.');
     }
 
     if (!in_array($defaultPaymentMethod, $enabledPaymentMethods, TRUE)) {
-      throw new \InvalidArgumentException('Default payment method must be one of the enabled methods.');
+      throw new MontonioConfigurationException('Default payment method must be one of the enabled methods.');
     }
   }
 

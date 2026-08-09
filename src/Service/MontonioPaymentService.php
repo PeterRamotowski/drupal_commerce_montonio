@@ -2,16 +2,11 @@
 
 namespace Drupal\commerce_montonio\Service;
 
-use Drupal\commerce_montonio\Dto\DtoFactory;
 use Drupal\commerce_montonio\Dto\MontonioTokenDto;
 use Drupal\commerce_montonio\Event\PaymentEventDispatcher;
-use Drupal\commerce_montonio\Event\PaymentStatusEvent;
 use Drupal\commerce_montonio\Service\PaymentStatus\PaymentStatusStrategyManager;
 use Drupal\commerce_order\Entity\OrderInterface;
 use Drupal\commerce_payment\Entity\PaymentGatewayInterface;
-use Drupal\Core\Language\LanguageManagerInterface;
-use Drupal\Core\Url;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Main service for Montonio payment operations.
@@ -20,15 +15,26 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
  */
 class MontonioPaymentService {
 
+  /**
+   * Constructs a new MontonioPaymentService object.
+   *
+   * @param \Drupal\commerce_montonio\Event\PaymentEventDispatcher $eventDispatcher
+   *   The Montonio payment event dispatcher.
+   * @param \Drupal\commerce_montonio\Service\MontonioApiClientFactory $apiClientFactory
+   *   The Montonio API client factory.
+   * @param \Drupal\commerce_montonio\Service\PaymentMethodValidator $paymentMethodValidator
+   *   The payment method validator.
+   * @param \Drupal\commerce_montonio\Service\PaymentStatus\PaymentStatusStrategyManager $statusStrategyManager
+   *   The payment status strategy manager.
+   * @param \Drupal\commerce_montonio\Service\OrderRequestBuilder $orderRequestBuilder
+   *   The order request builder.
+   */
   public function __construct(
-    private EventDispatcherInterface $symfonyEventDispatcher,
     private PaymentEventDispatcher $eventDispatcher,
     private MontonioApiClientFactory $apiClientFactory,
     private PaymentMethodValidator $paymentMethodValidator,
     private PaymentStatusStrategyManager $statusStrategyManager,
-    private DtoFactory $dtoFactory,
-    private OrderNumber $orderNumber,
-    private LanguageManagerInterface $languageManager,
+    private OrderRequestBuilder $orderRequestBuilder,
   ) {}
 
   /**
@@ -59,22 +65,21 @@ class MontonioPaymentService {
     ?int $bnplPeriod = NULL,
   ): array {
     $apiClient = $this->apiClientFactory->createFromPaymentGateway($gateway);
+    $config = $gateway->getPlugin()->getConfiguration();
 
-    // Validate payment method configuration.
     $this->paymentMethodValidator->validateEnabledPaymentMethods(
-      $gateway->getPlugin()->getConfiguration()['enabled_payment_methods'] ?? []
+      $config['enabled_payment_methods'] ?? []
     );
     $this->paymentMethodValidator->validateDefaultPaymentMethod(
-      $gateway->getPlugin()->getConfiguration()['default_payment_method'] ?? 'blik',
-      $gateway->getPlugin()->getConfiguration()['enabled_payment_methods'] ?? []
+      $config['default_payment_method'] ?? 'blik',
+      $config['enabled_payment_methods'] ?? []
     );
 
-    // Validate payment method selection.
     $availableMethods = $apiClient->getPaymentMethods();
     $this->paymentMethodValidator->validatePaymentMethodSelection($paymentMethod, $availableMethods);
     $this->paymentMethodValidator->validateBankSelection($preferredBank, $paymentMethod);
 
-    $orderData = $this->buildOrderData($order, $gateway, $paymentMethod, $preferredBank, $bnplPeriod);
+    $orderData = $this->orderRequestBuilder->build($order, $gateway, $paymentMethod, $preferredBank, $bnplPeriod);
 
     return $apiClient->createOrder($orderData);
   }
@@ -98,167 +103,7 @@ class MontonioPaymentService {
     PaymentGatewayInterface $gateway,
   ): void {
     $this->statusStrategyManager->processPaymentStatus($token, $order, $gateway);
-
-    // Dispatch events for external listeners.
     $this->eventDispatcher->dispatchPaymentStatusEvent($token, $order, $gateway);
-
-    // Dispatch Symfony event for Drupal integration.
-    $event = new PaymentStatusEvent($token, $order, $gateway);
-    $this->symfonyEventDispatcher->dispatch($event, PaymentStatusEvent::PAYMENT_STATUS_CHANGED);
-  }
-
-  /**
-   * Builds order data for the Montonio API.
-   *
-   * @param \Drupal\commerce_order\Entity\OrderInterface $order
-   *   The order entity.
-   * @param \Drupal\commerce_payment\Entity\PaymentGatewayInterface $gateway
-   *   The payment gateway entity.
-   * @param string $paymentMethod
-   *   The selected payment method.
-   * @param string|null $preferredBank
-   *   The preferred bank.
-   * @param int|null $bnplPeriod
-   *   The BNPL period (1, 2, or 3).
-   *
-   * @return array
-   *   The order data array.
-   */
-  protected function buildOrderData(
-    OrderInterface $order,
-    PaymentGatewayInterface $gateway,
-    string $paymentMethod,
-    ?string $preferredBank = NULL,
-    ?int $bnplPeriod = NULL,
-  ): array {
-    $amount = $order->getTotalPrice();
-    $billingProfile = $order->getBillingProfile();
-
-    /** @var \Drupal\address\AddressInterface|null $billingAddress */
-    $billingAddress = $billingProfile ? $billingProfile->get('address')->first() : NULL;
-
-    $montonioBillingAddress = [];
-    if ($billingAddress) {
-      $montonioBillingAddress = $this->dtoFactory
-        ->createAddressDto($billingAddress, $order->getEmail())
-        ->toArray();
-    }
-
-    $profiles = $order->collectProfiles();
-
-    /** @var \Drupal\address\AddressInterface|null $shippingAddress */
-    $shippingAddress = isset($profiles['shipping']) ? $profiles['shipping']->get('address')->first() : NULL;
-
-    $montonioShippingAddress = $montonioBillingAddress;
-    if ($shippingAddress) {
-      $montonioShippingAddress = $this->dtoFactory
-        ->createAddressDto($shippingAddress, $order->getEmail())
-        ->toArray();
-    }
-
-    $lineItems = [];
-    foreach ($order->getItems() as $orderItem) {
-      $lineItems[] = [
-        'name' => $orderItem->getTitle(),
-        'quantity' => (int) $orderItem->getQuantity(),
-        'finalPrice' => (float) $orderItem->getTotalPrice()->getNumber(),
-      ];
-    }
-
-    // Build payment method options.
-    $methodOptions = [];
-    if ($paymentMethod === 'paymentInitiation') {
-      $methodOptions = [
-        'paymentDescription' => 'Payment for order ' . $order->getOrderNumber(),
-        'preferredCountry' => $montonioBillingAddress['country'] ?? 'EE',
-      ];
-
-      if ($preferredBank) {
-        $methodOptions['preferredProvider'] = $preferredBank;
-      }
-    }
-
-    if ($paymentMethod === 'bnpl') {
-      $methodOptions = [
-        'period' => (int) ($bnplPeriod ?? 1),
-      ];
-    }
-
-    $this->orderNumber->setOrderNumber($order);
-    $order->save();
-
-    $merchantReference = $order->getOrderNumber() ?: (string) $order->id();
-
-    return [
-      'merchantReference' => $merchantReference,
-      'returnUrl' => $this->buildReturnUrl($order),
-      'notificationUrl' => $this->buildNotificationUrl($gateway),
-      'currency' => $amount->getCurrencyCode(),
-      'grandTotal' => (float) $amount->getNumber(),
-      'locale' => $this->languageManager->getCurrentLanguage()->getId(),
-      'billingAddress' => $montonioBillingAddress,
-      'shippingAddress' => $montonioShippingAddress,
-      'lineItems' => $lineItems,
-      'payment' => [
-        'method' => $paymentMethod,
-        'methodDisplay' => $this->getPaymentMethodDisplayName($paymentMethod),
-        'methodOptions' => $methodOptions,
-        'amount' => (float) $amount->getNumber(),
-        'currency' => $amount->getCurrencyCode(),
-      ],
-    ];
-  }
-
-  /**
-   * Builds the return URL for the payment.
-   *
-   * @param \Drupal\commerce_order\Entity\OrderInterface $order
-   *   The order entity.
-   *
-   * @return string
-   *   The return URL.
-   */
-  protected function buildReturnUrl(OrderInterface $order): string {
-    return Url::fromRoute('commerce_payment.checkout.return', [
-      'commerce_order' => $order->id(),
-      'step' => 'payment',
-    ], ['absolute' => TRUE])->toString();
-  }
-
-  /**
-   * Builds the notification URL for webhooks.
-   *
-   * @param \Drupal\commerce_payment\Entity\PaymentGatewayInterface $gateway
-   *   The payment gateway entity.
-   *
-   * @return string
-   *   The notification URL.
-   */
-  protected function buildNotificationUrl(PaymentGatewayInterface $gateway): string {
-    return Url::fromRoute('commerce_montonio.webhook', [
-      'commerce_payment_gateway' => $gateway->id(),
-    ], ['absolute' => TRUE])->toString();
-  }
-
-  /**
-   * Gets the display name for a payment method.
-   *
-   * @param string $method
-   *   The payment method identifier.
-   *
-   * @return string
-   *   The display name.
-   */
-  protected function getPaymentMethodDisplayName(string $method): string {
-    $names = [
-      'cardPayments' => 'Pay with card',
-      'paymentInitiation' => 'Pay with your bank',
-      'blik' => 'Pay with BLIK',
-      'bnpl' => 'Buy now, pay later',
-      'hirePurchase' => 'Hire purchase',
-    ];
-
-    return $names[$method] ?? 'Montonio';
   }
 
 }

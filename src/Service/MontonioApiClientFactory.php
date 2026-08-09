@@ -2,22 +2,34 @@
 
 namespace Drupal\commerce_montonio\Service;
 
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\commerce_payment\Entity\PaymentGatewayInterface;
 use Drupal\commerce_payment\Plugin\Commerce\PaymentGateway\PaymentGatewayInterface as PaymentGatewayPluginInterface;
+use GuzzleHttp\ClientInterface;
 
 /**
  * Factory service for creating configured Montonio API clients.
+ *
+ * Each call to a create* method returns a freshly constructed client with
+ * its own isolated JWT service and credentials, avoiding credential bleed
+ * across gateways within a single request.
  */
 class MontonioApiClientFactory {
 
   /**
    * Constructs a new MontonioApiClientFactory object.
    *
-   * @param MontonioApiClient $apiClient
-   *   Montonio API client.
+   * @param \GuzzleHttp\ClientInterface $httpClient
+   *   The HTTP client.
+   * @param \Drupal\commerce_montonio\Service\MontonioLogger $logger
+   *   The Montonio logger service.
+   * @param \Drupal\Core\Cache\CacheBackendInterface|null $cache
+   *   The cache backend for payment method caching.
    */
   public function __construct(
-    protected MontonioApiClient $apiClient,
+    protected ClientInterface $httpClient,
+    protected MontonioLogger $logger,
+    protected ?CacheBackendInterface $cache = NULL,
   ) {}
 
   /**
@@ -29,17 +41,23 @@ class MontonioApiClientFactory {
    *   Whether to use sandbox mode.
    *
    * @return \Drupal\commerce_montonio\Service\MontonioApiClient
-   *   A configured API client instance.
+   *   A freshly constructed and configured API client instance.
    */
-  public function createFromConfiguration(array $configuration, $sandboxMode = FALSE): MontonioApiClient {
-    $this->apiClient->setConfiguration(
+  public function createFromConfiguration(array $configuration, bool $sandboxMode = FALSE): MontonioApiClient {
+    $client = new MontonioApiClient(
+      $this->httpClient,
+      $this->logger,
+      new MontonioJwtService(),
+      $this->cache,
+    );
+    $client->setConfiguration(
       $configuration['access_key'],
       $configuration['secret_key'],
       $sandboxMode,
-      $configuration['debug'] ?? FALSE
+      (bool) ($configuration['debug'] ?? FALSE),
     );
 
-    return $this->apiClient;
+    return $client;
   }
 
   /**

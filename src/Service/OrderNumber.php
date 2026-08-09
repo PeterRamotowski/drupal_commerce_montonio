@@ -10,6 +10,12 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
  */
 class OrderNumber {
 
+  /**
+   * Constructs a new OrderNumber object.
+   *
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   The entity type manager.
+   */
   public function __construct(
     protected EntityTypeManagerInterface $entityTypeManager,
   ) {}

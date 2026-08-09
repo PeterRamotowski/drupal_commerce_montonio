@@ -7,19 +7,12 @@ services:
     parent: logger.channel_base
     arguments: ['commerce_montonio']
 
-  commerce_montonio.jwt_service:
-    class: Drupal\commerce_montonio\Service\MontonioJwtService
-
-  commerce_montonio.api_client:
-    class: Drupal\commerce_montonio\Service\MontonioApiClient
+  commerce_montonio.api_client_factory:
+    class: Drupal\commerce_montonio\Service\MontonioApiClientFactory
     arguments:
       - '@http_client'
       - '@commerce_montonio.logger'
-      - '@commerce_montonio.jwt_service'
-
-  commerce_montonio.api_client_factory:
-    class: Drupal\commerce_montonio\Service\MontonioApiClientFactory
-    arguments: ['@commerce_montonio.api_client']
+      - '@cache.default'
 
   commerce_montonio.payment_method_validator:
     class: Drupal\commerce_montonio\Service\PaymentMethodValidator
@@ -34,7 +27,10 @@ services:
 
   commerce_montonio.payment_status_strategy.paid:
     class: Drupal\commerce_montonio\Service\PaymentStatus\PaidPaymentStrategy
-    arguments: ['@commerce_montonio.logger', '@commerce_montonio.payment_repository']
+    arguments:
+      - '@commerce_montonio.logger'
+      - '@commerce_montonio.payment_repository'
+      - '@lock'
 
   commerce_montonio.payment_status_strategy.voided:
     class: Drupal\commerce_montonio\Service\PaymentStatus\VoidedPaymentStrategy
@@ -67,19 +63,30 @@ services:
   commerce_montonio.payment_service:
     class: Drupal\commerce_montonio\Service\MontonioPaymentService
     arguments:
-      - '@event_dispatcher'
       - '@commerce_montonio.payment_event_dispatcher'
       - '@commerce_montonio.api_client_factory'
       - '@commerce_montonio.payment_method_validator'
       - '@commerce_montonio.payment_status_strategy_manager'
-      - '@commerce_montonio.dto_factory'
-      - '@commerce_montonio.order_number'
-      - '@language_manager'
+      - '@commerce_montonio.order_request_builder'
 
   commerce_montonio.webhook_validator:
     class: Drupal\commerce_montonio\Service\WebhookValidator
+    factory: ['Drupal\commerce_montonio\Service\WebhookValidatorFactory', 'create']
     arguments: ['@commerce_montonio.logger']
 
   commerce_montonio.order_number:
     class: Drupal\commerce_montonio\Service\OrderNumber
     arguments: ['@entity_type.manager']
+
+  commerce_montonio.order_request_builder:
+    class: Drupal\commerce_montonio\Service\OrderRequestBuilder
+    arguments:
+      - '@commerce_montonio.dto_factory'
+      - '@commerce_montonio.order_number'
+      - '@language_manager'
+
+  commerce_montonio.payment_form_options_builder:
+    class: Drupal\commerce_montonio\Service\PaymentFormOptionsBuilder
+    arguments:
+      - '@commerce_montonio.payment_method_validator'
+      - '@string_translation'
