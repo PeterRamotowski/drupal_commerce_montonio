@@ -160,16 +160,16 @@ class Montonio extends OffsitePaymentGatewayBase {
    * {@inheritdoc}
    */
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
+    $existing_secret_key = $this->configuration['secret_key'] ?? '';
     parent::submitConfigurationForm($form, $form_state);
 
     if (!$form_state->getErrors()) {
       $values = $form_state->getValue($form['#parents']);
       $enabled_payment_methods = array_filter($values['enabled_payment_methods']);
       $this->configuration['access_key'] = $values['access_key'];
-      // Only update the secret key if a new value was provided.
-      if (!empty($values['secret_key'])) {
-        $this->configuration['secret_key'] = $values['secret_key'];
-      }
+      $this->configuration['secret_key'] = $values['secret_key'] !== ''
+        ? $values['secret_key']
+        : $existing_secret_key;
       $this->configuration['default_payment_method'] = $values['default_payment_method'];
       $this->configuration['enabled_payment_methods'] = array_values($enabled_payment_methods);
       $this->configuration['debug'] = $values['debug'];
