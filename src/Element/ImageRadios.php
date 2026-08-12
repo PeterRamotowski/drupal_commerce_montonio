@@ -38,12 +38,15 @@ class ImageRadios extends Radios {
   ) {
     foreach (Element::children($element) as $key) {
       if (isset($element[$key]['#title']['image'])) {
-        $element[$key]['#title'] = [
+        $label = $element[$key]['#title']['label'];
+        $image = [
           '#theme' => 'image',
           '#uri' => $element[$key]['#title']['image'],
-          '#alt' => $element[$key]['#title']['label'],
-          '#title' => $element[$key]['#title']['label'],
+          '#alt' => $label,
+          '#title' => $label,
         ];
+        $element[$key]['#title'] = \Drupal::service('renderer')
+          ->renderInIsolation($image);
       }
 
       $element[$key]['#wrapper_attributes']['class'][] = 'image-radios__item';
